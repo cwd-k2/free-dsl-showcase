@@ -1,58 +1,7 @@
-import { type Program, run } from "../src/free.ts";
+import { cartContentsQuery } from "../examples/sql.ts";
+import { run } from "../src/free.ts";
 import { sql, sqlInterpreter } from "../src/sql.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
-
-// The application program is a consumer of the SQL DSL, so it lives with its example test.
-function* cartContentsQuery(cartId: string, userId: string): Program<void> {
-  const {
-    as: selectAs,
-    binary,
-    column,
-    from,
-    join,
-    limit,
-    orderBy,
-    param,
-    select,
-    table,
-    where,
-  } = sql;
-
-  const carts = yield* table("carts", "c");
-  const items = yield* table("cart_items", "ci");
-  const products = yield* table("products", "p");
-
-  const cartPk = yield* column(carts, "id");
-  const cartOwner = yield* column(carts, "user_id");
-  const itemCartId = yield* column(items, "cart_id");
-  const itemProductId = yield* column(items, "product_id");
-  const quantity = yield* column(items, "quantity", "quantity");
-  const productPk = yield* column(products, "id", "product_id");
-  const productName = yield* column(products, "name", "product_name");
-  const unitPrice = yield* column(products, "unit_price", "unit_price");
-
-  const itemsInCart = yield* binary("=", itemCartId, cartPk);
-  const itemProducts = yield* binary("=", productPk, itemProductId);
-  yield* from(carts);
-  yield* join("INNER", items, itemsInCart);
-  yield* join("INNER", products, itemProducts);
-
-  const requestedCart = yield* binary("=", cartPk, yield* param(cartId));
-  const ownedByUser = yield* binary("=", cartOwner, yield* param(userId));
-  yield* where(requestedCart);
-  yield* where(ownedByUser);
-
-  const subtotal = yield* binary("*", quantity, unitPrice);
-  yield* select(
-    productPk,
-    productName,
-    quantity,
-    unitPrice,
-    yield* selectAs(subtotal, "subtotal"),
-  );
-  yield* orderBy(productName);
-  yield* limit(100);
-}
 
 Deno.test("cart contents program renders parameterized SQL", () => {
   const result = run(cartContentsQuery("cart-42", "user-7"), sqlInterpreter());

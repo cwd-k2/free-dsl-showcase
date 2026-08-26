@@ -1,16 +1,7 @@
-import { consoleInterpreter, io, log, stateInterpreter } from "../src/effects.ts";
-import { type Program, run } from "../src/free.ts";
+import { greet } from "../examples/effects.ts";
+import { consoleInterpreter, stateInterpreter } from "../src/effects.ts";
+import { run } from "../src/free.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
-
-// This application describes effects but does not choose how they are executed.
-function* greet(): Program<string> {
-  yield* log.info("asking for a name");
-  const name = yield* io.readLine("Your name?");
-  const greeting = `Hello, ${name}!`;
-  yield* io.writeLine(greeting);
-  yield* log.info("greeting written");
-  return greeting;
-}
 
 Deno.test("ordinary effects can be interpreted as pure State", () => {
   const result = run(greet(), stateInterpreter<string>(["Ada"]));

@@ -6,7 +6,10 @@
     "lineWidth": 100
   },
   "tasks": {
-    "check": "deno fmt --check && deno lint && deno check src/*.ts tests/*.ts",
-    "test": "deno test"
+    "check": "deno fmt --check && deno lint && deno check src/*.ts examples/*.ts tests/*.ts",
+    "test": "deno test",
+    "showcase:effects": "deno run examples/effects.ts",
+    "showcase:sql": "deno run examples/sql.ts",
+    "showcase:regex": "deno run examples/regex.ts"
   }
 }

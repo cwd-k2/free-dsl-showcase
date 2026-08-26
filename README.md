@@ -1,7 +1,7 @@
 # Free Generator DSL Showcase
 
-Deno の Generator をエフェクト列として使い、同じ小さなインタープリタ基盤から SQL と 正規表現の DSL
-を構築するショーケースです。
+Deno の Generator をエフェクト列として使い、同じ小さなインタープリタ基盤から IO / Log、SQL、
+正規表現の DSL を構築するショーケースです。
 
 ## 開発環境
 
@@ -23,6 +23,7 @@ nix flake check
 - `src/effects.ts`: `IO` / `Log` エフェクトと、純粋な State・実コンソールのインタープリタ
 - `src/sql.ts`: パラメータ化 SQL の DSL とインタープリタ
 - `src/regex.ts`: 正規表現 DSL、実行可能な `RegExp` と簡潔な source 文字列へのインタープリタ
+- `examples/`: 各 DSL のサンプルプログラム兼 CLI エントリポイント
 - `tests/effects_test.ts`: 同じ対話プログラムの State 実行とコンソール IO 実行
 - `tests/sql_test.ts`: SQL DSL を利用するカート検索プログラムの例
 - `tests/regex_test.ts`: RFC 5322 の dot-atom を意識したメールアドレスパターンの例
@@ -37,7 +38,7 @@ obsolete syntax、アドレス全体の長さ制約まで含む完全な RFC 532
 
 ## 通常の計算効果: IO と Log
 
-`tests/effects_test.ts` の `greet` は、実行方法を決めずに `IO` と `Log` の効果だけを記述します。
+`examples/effects.ts` の `greet` は、実行方法を決めずに `IO` と `Log` の効果だけを記述します。
 
 ```ts
 function* greet(): Program<string> {
@@ -64,3 +65,21 @@ const result = run(greet(), stateInterpreter<string>(["Ada"]));
 ```ts
 const greeting = run(greet(), consoleInterpreter<string>());
 ```
+
+## CLI で実行する
+
+各サンプルは Deno task から直接実行できます。
+
+```nu
+# IO / Log: 名前を対話入力する
+deno task showcase:effects
+
+# SQL: cart ID と user ID は省略可能
+deno task showcase:sql cart-42 user-7
+
+# Regex: 引数を省略すると組み込みの3例を使う
+deno task showcase:regex alice@example.com invalid-address
+```
+
+`showcase:sql` は生成したパラメータ化 SQL とパラメータ配列を表示します。`showcase:regex` は生成した
+正規表現に加えて、各入力の match 結果とキャプチャした `local` / `domain` を表示します。
