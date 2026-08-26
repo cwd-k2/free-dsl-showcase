@@ -1,5 +1,10 @@
 import { type Program, run } from "../src/free.ts";
-import { regex, type RegexFragment, regexInterpreter } from "../src/regex.ts";
+import {
+  compactRegexSourceInterpreter,
+  regex,
+  type RegexFragment,
+  regexInterpreter,
+} from "../src/regex.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
 
 /**
@@ -37,6 +42,7 @@ function* emailAddressPattern(): Program<RegexFragment> {
 
 type ParsedEmail = { local: string; domain: string };
 const EMAIL_RE = run(emailAddressPattern(), regexInterpreter("i"));
+const EMAIL_SOURCE = run(emailAddressPattern(), compactRegexSourceInterpreter());
 
 function parseEmail(input: string): ParsedEmail | null {
   const match = EMAIL_RE.exec(input);
@@ -45,7 +51,7 @@ function parseEmail(input: string): ParsedEmail | null {
 }
 
 Deno.test("email example accepts and captures dot-atom addresses", () => {
-  console.log(`generated email regexp: ${EMAIL_RE.source}`);
+  console.log(`generated email regexp: ${EMAIL_SOURCE}`);
 
   assertEquals(parseEmail("alice@example.com"), { local: "alice", domain: "example.com" });
   assertEquals(parseEmail("shop+tag@sub.example.co.jp"), {
@@ -82,14 +88,42 @@ Deno.test("regex repeat validates its bounds", () => {
   );
 });
 
-Deno.test("character sets render standard ASCII runs as ranges", () => {
+Deno.test("RegExp interpreter preserves explicitly listed character sets", () => {
   function* identifierPattern(): Program<RegexFragment> {
     return yield* regex.charSet(
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_",
     );
   }
 
-  assertEquals(run(identifierPattern(), regexInterpreter()).source, "^(?:[A-Za-z0-9_])$");
+  assertEquals(
+    run(identifierPattern(), regexInterpreter()).source,
+    "^(?:[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_])$",
+  );
+});
+
+Deno.test("compact source interpreter uses JavaScript shorthand classes and ranges", () => {
+  function* identifierPattern(): Program<RegexFragment> {
+    const identifier = yield* regex.charSet(
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_",
+    );
+    const digit = yield* regex.charSet("0123456789");
+    const hexadecimal = yield* regex.charSet("ABCDEFabcdef0123456789");
+    return yield* regex.seq(identifier, digit, hexadecimal);
+  }
+
+  assertEquals(
+    run(identifierPattern(), compactRegexSourceInterpreter()),
+    "^\\w\\d[A-Fa-f0-9]$",
+  );
+});
+
+Deno.test("compact source interpreter uses optional and elides exact-one quantifiers", () => {
+  function* optionalPattern(): Program<RegexFragment> {
+    const x = yield* regex.literal("x");
+    return yield* regex.seq(yield* regex.repeat(x, 0, 1), yield* regex.repeat(x, 1, 1));
+  }
+
+  assertEquals(run(optionalPattern(), compactRegexSourceInterpreter()), "^(?:x)?x$");
 });
 
 Deno.test("character sets preserve non-BMP characters", () => {

@@ -19,47 +19,80 @@ function escapeRegex(text: string): string {
   return text.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
 }
 
-const ASCII_RANGES = [
-  ["ABCDEFGHIJKLMNOPQRSTUVWXYZ", "A-Z"],
-  ["abcdefghijklmnopqrstuvwxyz", "a-z"],
-  ["0123456789", "0-9"],
-] as const;
+const ASCII_DIGITS = "0123456789";
+const ASCII_WORD = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
 
 function escapeCharClassChar(char: string): string {
-  return char === "\\" || char === "]" || char === "-" || char === "^" ? `\\${char}` : char;
+  return char === "\\" || char === "[" || char === "]" || char === "-" || char === "^"
+    ? `\\${char}`
+    : char;
 }
 
-function renderCharClass(chars: string): string {
+function sameCharacters(left: string, right: string): boolean {
+  const leftSet = new Set(left);
+  const rightSet = new Set(right);
+  return leftSet.size === rightSet.size && [...leftSet].every((char) => rightSet.has(char));
+}
+
+function renderCharClass(chars: string, compact: boolean): string {
+  if (!compact) return `[${[...chars].map(escapeCharClassChar).join("")}]`;
+  if (sameCharacters(chars, ASCII_DIGITS)) return "\\d";
+  if (sameCharacters(chars, ASCII_WORD)) return "\\w";
+
+  const characters = [...chars];
   let source = "";
 
-  for (let index = 0; index < chars.length;) {
-    const range = ASCII_RANGES.find(([characters]) => chars.startsWith(characters, index));
-    if (range) {
-      source += range[1];
-      index += range[0].length;
+  for (let index = 0; index < characters.length;) {
+    const start = characters[index];
+    const category = /[A-Z]/.test(start)
+      ? "upper"
+      : /[a-z]/.test(start)
+      ? "lower"
+      : /[0-9]/.test(start)
+      ? "digit"
+      : undefined;
+    let end = index;
+
+    while (
+      category && end + 1 < characters.length &&
+      characters[end + 1].codePointAt(0) === characters[end].codePointAt(0)! + 1 &&
+      (category === "upper" ? /[A-Z]/ : category === "lower" ? /[a-z]/ : /[0-9]/).test(
+        characters[end + 1],
+      )
+    ) {
+      end++;
+    }
+
+    if (end - index >= 2) {
+      source += `${start}-${characters[end]}`;
+      index = end + 1;
     } else {
-      const char = String.fromCodePoint(chars.codePointAt(index)!);
-      source += escapeCharClassChar(char);
-      index += char.length;
+      source += escapeCharClassChar(start);
+      index++;
     }
   }
 
   return `[${source}]`;
 }
 
-function quantifier(min: number, max?: number): string {
+function quantifier(min: number, max: number | undefined, compact: boolean): string {
   if (!Number.isSafeInteger(min) || min < 0) throw new Error(`Invalid repeat min: ${min}`);
   if (max !== undefined && (!Number.isSafeInteger(max) || max < min)) {
     throw new Error(`Invalid repeat max: ${max}`);
   }
   if (min === 0 && max === undefined) return "*";
   if (min === 1 && max === undefined) return "+";
+  if (compact && min === 0 && max === 1) return "?";
+  if (compact && min === 1 && max === 1) return "";
   if (max === undefined) return `{${min},}`;
   if (max === min) return `{${min}}`;
   return `{${min},${max}}`;
 }
 
-export function regexInterpreter(flags = ""): Interpreter<RegexState, RegExp> {
+function sourceInterpreter<Out>(
+  compact: boolean,
+  finish: (source: string) => Out,
+): Interpreter<RegexState, Out> {
   return {
     initial: () => null,
     handlers: {
@@ -71,7 +104,7 @@ export function regexInterpreter(flags = ""): Interpreter<RegexState, RegExp> {
         if (chars.length === 0) throw new Error("charSet must not be empty");
         return {
           state,
-          value: { tag: "regex", source: renderCharClass(chars) } satisfies RegexFragment,
+          value: { tag: "regex", source: renderCharClass(chars, compact) } satisfies RegexFragment,
         };
       },
       "rx.seq": (state, { parts }) => ({
@@ -95,7 +128,9 @@ export function regexInterpreter(flags = ""): Interpreter<RegexState, RegExp> {
         state,
         value: {
           tag: "regex",
-          source: `(?:${part.source})${quantifier(min, max)}`,
+          source: compact && min === 1 && max === 1
+            ? part.source
+            : `(?:${part.source})${quantifier(min, max, compact)}`,
         } satisfies RegexFragment,
       }),
       "rx.capture": (state, { name, part }) => {
@@ -116,7 +151,17 @@ export function regexInterpreter(flags = ""): Interpreter<RegexState, RegExp> {
       if (!fragment || fragment.tag !== "regex") {
         throw new Error("Regex program must return a RegexFragment");
       }
-      return new RegExp(`^(?:${fragment.source})$`, flags);
+      return finish(compact ? `^${fragment.source}$` : `^(?:${fragment.source})$`);
     },
   };
+}
+
+/** Interprets a regex program as an executable, fully anchored JavaScript RegExp. */
+export function regexInterpreter(flags = ""): Interpreter<RegexState, RegExp> {
+  return sourceInterpreter(false, (source) => new RegExp(source, flags));
+}
+
+/** Interprets a regex program as a compact, fully anchored JavaScript regex source string. */
+export function compactRegexSourceInterpreter(): Interpreter<RegexState, string> {
+  return sourceInterpreter(true, (source) => source);
 }
