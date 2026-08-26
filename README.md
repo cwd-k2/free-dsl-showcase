@@ -29,7 +29,11 @@ nix flake check
 - `src/regex/interpreter.ts`: Regex operation に意味を与えるインタープリタ
 - `src/regex/render.ts`: エスケープ、文字クラス、量指定子のレンダリング規則
 - `src/shipment/`: 配送調査の業務語彙と、Regex / SQL DSL への展開
-- `examples/`: 各 DSL のサンプルプログラム兼 CLI エントリポイント
+- `examples/sql.ts`: 意味論パーツからカート内容を記述する、推奨する SQL DSL 利用例
+- `examples/sql-primitives.ts`: 同じクエリを低レベル SQL primitive だけで組み立てる比較例
+- `examples/regex.ts`: parser 語彙でメールアドレスを記述する、推奨する Regex DSL 利用例
+- `examples/regex-primitives.ts`: 同じパターンを低レベル Regex primitive だけで組み立てる比較例
+- `examples/`: その他の DSL サンプルプログラム兼 CLI エントリポイント
 - `tests/effects_test.ts`: 同じ対話プログラムの State 実行とコンソール IO 実行
 - `tests/sql_test.ts`: SQL DSL を利用するカート検索プログラムの例
 - `tests/regex_test.ts`: RFC 5322 の dot-atom を意識したメールアドレスパターンの例
@@ -46,6 +50,12 @@ obsolete syntax、アドレス全体の長さ制約まで含む完全な RFC 532
 で解釈すると `\w`、`\d`、文字範囲などを使った表示用の source 文字列になります。つまり「parser
 としての記述が、解釈によって正規表現になる」例です。
 
+`examples/regex-primitives.ts` には同じメールパターンを
+`regex.literal`、`regex.charSet`、`regex.seq`、 `regex.repeat`
+などだけで構築した比較例があります。両者から生成した compact source と実行用 `RegExp`
+が一致することをテストし、parser 語彙が正規表現の能力を増やす魔法ではなく、低レベルな
+構造へ人が読める意味を与える層であることを明示しています。
+
 SQL の例も同じ考え方ですが、構文の別名ではなくドメインの意味まで一段上げています。クエリ本体が
 扱うのは `contentsOfCart`、`forOwner`、`describeEachLine`、`alphabeticalByProduct`、`takeAtMost`
 です。テーブル、カラム、JOIN、比較演算、射影はこの語彙を SQL DSL へ展開する層にだけ現れます。
@@ -60,6 +70,17 @@ yield * contents.takeAtMost(100);
 
 この例が表すのは「SQL を読みやすく書く」だけではなく、「取得したいものの意味を記述し、それを SQL
 として解釈する」という層の分離です。
+
+対比のため、`examples/sql-primitives.ts` には同じクエリを `sql.table`、`sql.column`、`sql.join`、
+`sql.binary` などだけで構築した例を分離して置いています。こちらでは実装上の手順を追えますが、
+「カート内容を誰の権限で、どのように提示するか」という意図は読み取りにくくなります。テストでは
+両方を解釈した SQL とパラメータが完全に一致することを確認しているため、次の対比を出力の違いと
+混同せずに読めます。
+
+```text
+推奨:  業務の意味 → 意味論パーツ → SQL primitive → SQL
+対比:  SQL primitive の直接列挙 ─────────────→ SQL
+```
 
 各 DSL は、利用できる語彙を定義する `language.ts`、operation を処理する `interpreter.ts`、最終表現を
 組み立てる `render.ts` の順に読むと、記述・解釈・表示という処理の流れを追えます。外部からは各
@@ -187,11 +208,16 @@ deno task showcase:sql cart-42 user-7
 # Regex: 引数を省略すると組み込みの3例を使う
 deno task showcase:regex alice@example.com invalid-address
 
+# 比較用: 同じ出力を素の DSL primitive から生成する
+deno task showcase:sql-primitives cart-42 user-7
+deno task showcase:regex-primitives
+
 # Advanced: SQL / Regex を隠した配送調査手続き
 deno task showcase:investigation --explain --fraud --detail=customer TYO/ORD-2026-00421
 ```
 
 `showcase:sql` は生成したパラメータ化 SQL とパラメータ配列を表示します。`showcase:regex` は生成した
 正規表現に加えて、各入力の match 結果とキャプチャした `local` / `domain` を表示します。
+`*-primitives` の2つは、対応する推奨例と同じ最終表現を低レベル語彙から直接生成します。
 `showcase:investigation` は通常は業務上の調査方針だけを表示し、`--explain` 指定時に限って下位の
 Regex / SQL 表現を表示します。

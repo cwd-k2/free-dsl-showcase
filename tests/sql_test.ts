@@ -1,5 +1,6 @@
 /** Integration and validation tests for the SQL language, interpreter, and renderer. */
 
+import { primitiveCartContentsQuery } from "../examples/sql-primitives.ts";
 import { cartContentsQuery } from "../examples/sql.ts";
 import { run } from "../src/free.ts";
 import { sql, sqlInterpreter } from "../src/sql/mod.ts";
@@ -24,6 +25,13 @@ WHERE ("c"."id" = $1) AND ("c"."user_id" = $2)
 ORDER BY "p"."name" ASC
 LIMIT 100`,
   );
+});
+
+Deno.test("domain vocabulary and raw primitives lower to the same query", () => {
+  const semantic = run(cartContentsQuery("cart-42", "user-7"), sqlInterpreter());
+  const primitive = run(primitiveCartContentsQuery("cart-42", "user-7"), sqlInterpreter());
+
+  assertEquals(semantic, primitive);
 });
 
 Deno.test("SQL identifiers cannot inject raw SQL", () => {

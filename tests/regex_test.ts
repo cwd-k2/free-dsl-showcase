@@ -1,5 +1,6 @@
 /** Tests shared regex semantics plus the deliberate differences between the two output modes. */
 
+import { primitiveEmailRegex, primitiveEmailRegexSource } from "../examples/regex-primitives.ts";
 import { emailRegex, emailRegexSource, parseEmail } from "../examples/regex.ts";
 import { type Program, run } from "../src/free.ts";
 import {
@@ -40,6 +41,17 @@ Deno.test("email example rejects forms outside its documented subset", () => {
   ) {
     assertEquals(parseEmail(input, EMAIL_RE), null);
   }
+});
+
+Deno.test("parser vocabulary and raw primitives lower to the same patterns", () => {
+  const semantic = emailRegex();
+  const primitive = primitiveEmailRegex();
+
+  assertEquals(emailRegexSource(), primitiveEmailRegexSource());
+  assertEquals({ source: semantic.source, flags: semantic.flags }, {
+    source: primitive.source,
+    flags: primitive.flags,
+  });
 });
 
 Deno.test("regex repeat validates its bounds", () => {
