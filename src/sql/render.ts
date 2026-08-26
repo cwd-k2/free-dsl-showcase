@@ -41,6 +41,9 @@ export function renderSql(state: QueryState): Sql {
         return `$${params.length}`;
       case "binary":
         return `(${expr(value.left)} ${value.op} ${expr(value.right)})`;
+      case "logical":
+        if (value.parts.length === 0) throw new Error(`${value.op} requires at least one operand`);
+        return `(${value.parts.map(expr).join(` ${value.op} `)})`;
     }
   };
 

@@ -14,9 +14,20 @@ export type TableRef = Readonly<{ tag: "table"; name: string; alias: string }>;
 export type SqlExpr =
   | Readonly<{ tag: "column"; table: TableRef; name: string; alias?: string }>
   | Readonly<{ tag: "param"; value: unknown }>
-  | Readonly<{ tag: "binary"; op: SqlBinaryOp; left: SqlExpr; right: SqlExpr }>;
+  | Readonly<{ tag: "binary"; op: SqlBinaryOp; left: SqlExpr; right: SqlExpr }>
+  | Readonly<{ tag: "logical"; op: "AND" | "OR"; parts: SqlExpr[] }>;
 
-export type SqlBinaryOp = "=" | "<>" | ">" | ">=" | "<" | "<=" | "+" | "-" | "*" | "/";
+export type SqlBinaryOp =
+  | "="
+  | "<>"
+  | ">"
+  | ">="
+  | "<"
+  | "<="
+  | "+"
+  | "-"
+  | "*"
+  | "/";
 export type SelectItem = Readonly<{ expr: SqlExpr; alias?: string }>;
 export type Selectable = SqlExpr | SelectItem;
 export type Join = Readonly<{ type: "INNER" | "LEFT"; table: TableRef; on: SqlExpr }>;
@@ -43,6 +54,8 @@ export const sql = {
   param: <A>(value: A) => perform<SqlExpr>("sql.param", { value }),
   binary: (op: SqlBinaryOp, left: SqlExpr, right: SqlExpr) =>
     perform<SqlExpr>("sql.binary", { op, left, right }),
+  and: (...parts: SqlExpr[]) => perform<SqlExpr>("sql.logical", { op: "AND", parts }),
+  or: (...parts: SqlExpr[]) => perform<SqlExpr>("sql.logical", { op: "OR", parts }),
   as: (expr: SqlExpr, alias?: string) => perform<SelectItem>("sql.as", { expr, alias }),
   from: (table: TableRef) => perform<void>("sql.from", { table }),
   join: (type: "INNER" | "LEFT", table: TableRef, on: SqlExpr) =>

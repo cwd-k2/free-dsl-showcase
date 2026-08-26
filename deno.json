@@ -10,6 +10,7 @@
     "test": "deno test",
     "showcase:effects": "deno run examples/effects.ts",
     "showcase:sql": "deno run examples/sql.ts",
-    "showcase:regex": "deno run examples/regex.ts"
+    "showcase:regex": "deno run examples/regex.ts",
+    "showcase:investigation": "deno run examples/shipment-investigation.ts"
   }
 }
