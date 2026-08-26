@@ -19,12 +19,32 @@ function escapeRegex(text: string): string {
   return text.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
 }
 
-function escapeCharClass(text: string): string {
-  return [...text]
-    .map((char) =>
-      char === "\\" || char === "]" || char === "-" || char === "^" ? `\\${char}` : char
-    )
-    .join("");
+const ASCII_RANGES = [
+  ["ABCDEFGHIJKLMNOPQRSTUVWXYZ", "A-Z"],
+  ["abcdefghijklmnopqrstuvwxyz", "a-z"],
+  ["0123456789", "0-9"],
+] as const;
+
+function escapeCharClassChar(char: string): string {
+  return char === "\\" || char === "]" || char === "-" || char === "^" ? `\\${char}` : char;
+}
+
+function renderCharClass(chars: string): string {
+  let source = "";
+
+  for (let index = 0; index < chars.length;) {
+    const range = ASCII_RANGES.find(([characters]) => chars.startsWith(characters, index));
+    if (range) {
+      source += range[1];
+      index += range[0].length;
+    } else {
+      const char = String.fromCodePoint(chars.codePointAt(index)!);
+      source += escapeCharClassChar(char);
+      index += char.length;
+    }
+  }
+
+  return `[${source}]`;
 }
 
 function quantifier(min: number, max?: number): string {
@@ -51,7 +71,7 @@ export function regexInterpreter(flags = ""): Interpreter<RegexState, RegExp> {
         if (chars.length === 0) throw new Error("charSet must not be empty");
         return {
           state,
-          value: { tag: "regex", source: `[${escapeCharClass(chars)}]` } satisfies RegexFragment,
+          value: { tag: "regex", source: renderCharClass(chars) } satisfies RegexFragment,
         };
       },
       "rx.seq": (state, { parts }) => ({

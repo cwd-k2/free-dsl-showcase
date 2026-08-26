@@ -45,6 +45,8 @@ function parseEmail(input: string): ParsedEmail | null {
 }
 
 Deno.test("email example accepts and captures dot-atom addresses", () => {
+  console.log(`generated email regexp: ${EMAIL_RE.source}`);
+
   assertEquals(parseEmail("alice@example.com"), { local: "alice", domain: "example.com" });
   assertEquals(parseEmail("shop+tag@sub.example.co.jp"), {
     local: "shop+tag",
@@ -61,14 +63,11 @@ Deno.test("email example rejects forms outside its documented subset", () => {
       "alice@-example.com",
       '"alice"@example.com',
       "alice@[127.0.0.1]",
+      "prefix alice@example.com suffix",
     ]
   ) {
     assertEquals(parseEmail(input), null);
   }
-});
-
-Deno.test("regex interpreter anchors the resulting pattern", () => {
-  assertEquals(EMAIL_RE.test("prefix alice@example.com suffix"), false);
 });
 
 Deno.test("regex repeat validates its bounds", () => {
@@ -81,4 +80,24 @@ Deno.test("regex repeat validates its bounds", () => {
     () => run(invalidPattern(), regexInterpreter()),
     "Invalid repeat max: 1",
   );
+});
+
+Deno.test("character sets render standard ASCII runs as ranges", () => {
+  function* identifierPattern(): Program<RegexFragment> {
+    return yield* regex.charSet(
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_",
+    );
+  }
+
+  assertEquals(run(identifierPattern(), regexInterpreter()).source, "^(?:[A-Za-z0-9_])$");
+});
+
+Deno.test("character sets preserve non-BMP characters", () => {
+  function* emojiPattern(): Program<RegexFragment> {
+    return yield* regex.charSet("😀😃");
+  }
+
+  const result = run(emojiPattern(), regexInterpreter("u"));
+  assertEquals(result.source, "^(?:[😀😃])$");
+  assertEquals(result.test("😀"), true);
 });
