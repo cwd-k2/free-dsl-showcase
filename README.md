@@ -46,6 +46,21 @@ obsolete syntax、アドレス全体の長さ制約まで含む完全な RFC 532
 で解釈すると `\w`、`\d`、文字範囲などを使った表示用の source 文字列になります。つまり「parser
 としての記述が、解釈によって正規表現になる」例です。
 
+SQL の例も同じ考え方ですが、構文の別名ではなくドメインの意味まで一段上げています。クエリ本体が
+扱うのは `contentsOfCart`、`forOwner`、`describeEachLine`、`alphabeticalByProduct`、`takeAtMost`
+です。テーブル、カラム、JOIN、比較演算、射影はこの語彙を SQL DSL へ展開する層にだけ現れます。
+
+```ts
+const contents = yield * contentsOfCart(cartId);
+yield * contents.forOwner(userId);
+yield * contents.describeEachLine();
+yield * contents.alphabeticalByProduct();
+yield * contents.takeAtMost(100);
+```
+
+この例が表すのは「SQL を読みやすく書く」だけではなく、「取得したいものの意味を記述し、それを SQL
+として解釈する」という層の分離です。
+
 各 DSL は、利用できる語彙を定義する `language.ts`、operation を処理する `interpreter.ts`、最終表現を
 組み立てる `render.ts` の順に読むと、記述・解釈・表示という処理の流れを追えます。外部からは各
 ディレクトリの `mod.ts` を公開 API として利用します。
