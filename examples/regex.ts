@@ -1,6 +1,6 @@
 /**
- * Dot-atom email example built from the regex DSL. The same generator program produces both an
- * executable RegExp and a compact source string through different interpretations.
+ * A small parser vocabulary built as aliases over the low-level regex DSL. Writing an email
+ * parser with that vocabulary produces both an executable RegExp and a compact source string.
  *
  * @module
  */
@@ -13,56 +13,102 @@ import {
   regexInterpreter,
 } from "../src/regex/mod.ts";
 
+/** A parser is only a readable name for the fragment produced by the regex DSL. */
+type Parser = RegexFragment;
+
+// These helpers add no new operations. Each one expands directly to the low-level vocabulary in
+// `src/regex/language.ts`; they merely let the grammar below read like a parser definition.
+function* text(value: string): Program<Parser> {
+  return yield* regex.literal(value);
+}
+
+function* oneOfCharacters(characters: string): Program<Parser> {
+  return yield* regex.charSet(characters);
+}
+
+function* sequence(...parsers: Parser[]): Program<Parser> {
+  return yield* regex.seq(...parsers);
+}
+
+function* choice(...parsers: Parser[]): Program<Parser> {
+  return yield* regex.alt(...parsers);
+}
+
+function* repeated(parser: Parser, min: number, max?: number): Program<Parser> {
+  return yield* regex.repeat(parser, min, max);
+}
+
+function* zeroOrMore(parser: Parser): Program<Parser> {
+  return yield* repeated(parser, 0);
+}
+
+function* oneOrMore(parser: Parser): Program<Parser> {
+  return yield* repeated(parser, 1);
+}
+
+function* between(min: number, max: number, parser: Parser): Program<Parser> {
+  return yield* repeated(parser, min, max);
+}
+
+function* named(name: string, parser: Parser): Program<Parser> {
+  return yield* regex.capture(name, parser);
+}
+
+function* separatedBy(parser: Parser, separator: Parser): Program<Parser> {
+  const followingItem = yield* sequence(separator, parser);
+  return yield* sequence(parser, yield* zeroOrMore(followingItem));
+}
+
 /**
- * A readable email addr-spec example based on RFC 5322's dot-atom form.
+ * A readable email addr-spec parser based on RFC 5322's dot-atom form.
  *
  * It intentionally omits quoted strings, comments, domain literals, obsolete
  * syntax, and whole-address length limits. Those are better handled by a real
  * parser when complete RFC compliance is required.
  */
-export function* emailAddressPattern(): Program<RegexFragment> {
-  const { alt, capture, charSet, literal, repeat, seq } = regex;
+export function* emailAddressParser(): Program<Parser> {
   const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   const digit = "0123456789";
   const atext = alpha + digit + "!#$%&'*+/=?^_`{|}~-";
 
-  const atomChars = yield* charSet(atext);
-  const alnum = yield* charSet(alpha + digit);
-  const labelMiddleChars = yield* charSet(alpha + digit + "-");
-  const alphaChars = yield* charSet(alpha);
-  const dot = yield* literal(".");
-  const at = yield* literal("@");
+  const dot = yield* text(".");
+  const atomCharacter = yield* oneOfCharacters(atext);
+  const atom = yield* oneOrMore(atomCharacter);
+  const localPart = yield* named("local", yield* separatedBy(atom, dot));
 
-  const local = yield* (function* (): Program<RegexFragment> {
-    const atom = yield* repeat(atomChars, 1);
-    const dottedAtom = yield* seq(dot, atom);
-    return yield* seq(atom, yield* repeat(dottedAtom, 0));
-  })();
-  const capturedLocal = yield* capture("local", local);
+  const alphaNumeric = yield* oneOfCharacters(alpha + digit);
+  const labelMiddleCharacter = yield* oneOfCharacters(alpha + digit + "-");
+  const longLabel = yield* sequence(
+    alphaNumeric,
+    yield* between(0, 61, labelMiddleCharacter),
+    alphaNumeric,
+  );
+  const label = yield* choice(longLabel, alphaNumeric);
+  const subdomains = yield* separatedBy(label, dot);
+  const topLevelDomain = yield* between(2, 63, yield* oneOfCharacters(alpha));
+  const domain = yield* named(
+    "domain",
+    yield* sequence(subdomains, dot, topLevelDomain),
+  );
 
-  const domain = yield* (function* (): Program<RegexFragment> {
-    const labelMiddle = yield* repeat(labelMiddleChars, 0, 61);
-    const longLabel = yield* seq(alnum, labelMiddle, alnum);
-    const label = yield* alt(longLabel, alnum);
-    const dottedLabel = yield* seq(dot, label);
-    const subdomains = yield* repeat(dottedLabel, 0);
-    const topLevelDomain = yield* repeat(alphaChars, 2, 63);
-    return yield* seq(label, subdomains, dot, topLevelDomain);
-  })();
+  return yield* sequence(localPart, yield* text("@"), domain);
+}
 
-  return yield* seq(capturedLocal, at, yield* capture("domain", domain));
+/** Backwards-compatible name emphasizing the compiled representation rather than its source. */
+export function emailAddressPattern(): Program<RegexFragment> {
+  return emailAddressParser();
 }
 
 export type ParsedEmail = { local: string; domain: string };
 
 /** Compile the example program into an anchored, case-insensitive executable pattern. */
 export function emailRegex(): RegExp {
-  return run(emailAddressPattern(), regexInterpreter("i"));
+  return run(emailAddressParser(), regexInterpreter("i"));
 }
 
 /** Render the example program in the compact form intended for display and inspection. */
 export function emailRegexSource(): string {
-  return run(emailAddressPattern(), compactRegexSourceInterpreter());
+  return run(emailAddressParser(), compactRegexSourceInterpreter());
 }
 
 /** Match an entire input and expose the two named captures as a small domain value. */

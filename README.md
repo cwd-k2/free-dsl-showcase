@@ -39,9 +39,12 @@ nix flake check
 obsolete syntax、アドレス全体の長さ制約まで含む完全な RFC 5322 検証には、正規表現ではなく専用の
 パーサーが適しています。
 
-正規表現の例は同じ Generator プログラムを `regexInterpreter()` で実行用の `RegExp` に、
-`compactRegexSourceInterpreter()` で `\w`、`\d`、文字範囲などを使った表示用の source 文字列に
-解釈します。
+正規表現の例では、`regex.literal`、`regex.seq`、`regex.repeat` などの低レベル operation に、
+`text`、`sequence`、`oneOrMore`、`separatedBy`、`named` という人が読みやすい薄い parser 語彙を
+かぶせています。この語彙でメールアドレスの parser を書き、同じ Generator プログラムを
+`regexInterpreter()` で解釈すると実行用の `RegExp` に、`compactRegexSourceInterpreter()`
+で解釈すると `\w`、`\d`、文字範囲などを使った表示用の source 文字列になります。つまり「parser
+としての記述が、解釈によって正規表現になる」例です。
 
 各 DSL は、利用できる語彙を定義する `language.ts`、operation を処理する `interpreter.ts`、最終表現を
 組み立てる `render.ts` の順に読むと、記述・解釈・表示という処理の流れを追えます。外部からは各
