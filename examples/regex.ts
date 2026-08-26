@@ -74,7 +74,7 @@ export function* emailAddressParser(): Program<Parser> {
   const dot = yield* text(".");
   const atomCharacter = yield* oneOfCharacters(atext);
   const atom = yield* oneOrMore(atomCharacter);
-  const localPart = yield* named("local", yield* separatedBy(atom, dot));
+  const localPart = yield* separatedBy(atom, dot);
 
   const alphaNumeric = yield* oneOfCharacters(alpha + digit);
   const labelMiddleCharacter = yield* oneOfCharacters(alpha + digit + "-");
@@ -86,12 +86,11 @@ export function* emailAddressParser(): Program<Parser> {
   const label = yield* choice(longLabel, alphaNumeric);
   const subdomains = yield* separatedBy(label, dot);
   const topLevelDomain = yield* between(2, 63, yield* oneOfCharacters(alpha));
-  const domain = yield* named(
-    "domain",
-    yield* sequence(subdomains, dot, topLevelDomain),
-  );
+  const domain = yield* sequence(subdomains, dot, topLevelDomain);
 
-  return yield* sequence(localPart, yield* text("@"), domain);
+  const capturedLocalPart = yield* named("local", localPart);
+  const capturedDomain = yield* named("domain", domain);
+  return yield* sequence(capturedLocalPart, yield* text("@"), capturedDomain);
 }
 
 /** Backwards-compatible name emphasizing the compiled representation rather than its source. */
