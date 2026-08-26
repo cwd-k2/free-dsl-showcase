@@ -1,5 +1,12 @@
+/**
+ * Example SQL program for a cart-contents query. It describes the query with DSL operations and
+ * only chooses the SQL interpreter at the executable boundary.
+ *
+ * @module
+ */
+
 import { type Program, run } from "../src/free.ts";
-import { sql, sqlInterpreter } from "../src/sql.ts";
+import { sql, sqlInterpreter } from "../src/sql/mod.ts";
 
 /** A parameterized query built only from the SQL DSL operations. */
 export function* cartContentsQuery(cartId: string, userId: string): Program<void> {
@@ -49,6 +56,7 @@ export function* cartContentsQuery(cartId: string, userId: string): Program<void
 }
 
 if (import.meta.main) {
+  // Keep query construction reusable while providing a convenient command-line demonstration.
   const [cartId = "cart-42", userId = "user-7"] = Deno.args;
   const query = run(cartContentsQuery(cartId, userId), sqlInterpreter());
   console.log(query.text);

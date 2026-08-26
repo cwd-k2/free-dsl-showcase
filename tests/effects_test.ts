@@ -1,3 +1,5 @@
+/** Tests that one effect program has equivalent pure-State and console interpretations. */
+
 import { greet } from "../examples/effects.ts";
 import { consoleInterpreter, stateInterpreter } from "../src/effects.ts";
 import { run } from "../src/free.ts";

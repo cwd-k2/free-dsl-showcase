@@ -1,3 +1,10 @@
+/**
+ * Small application that describes IO and logging independently of the runtime that executes it.
+ * Running this file directly selects the real console interpreter.
+ *
+ * @module
+ */
+
 import { consoleInterpreter, io, log } from "../src/effects.ts";
 import { type Program, run } from "../src/free.ts";
 
@@ -12,5 +19,6 @@ export function* greet(): Program<string> {
 }
 
 if (import.meta.main) {
+  // Module guards keep the same program importable by tests without starting interactive IO.
   run(greet(), consoleInterpreter<string>());
 }

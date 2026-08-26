@@ -1,3 +1,5 @@
+/** Behavioral tests for operation dispatch, state threading, and missing-handler failures. */
+
 import { perform, type Program, run } from "../src/free.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
 

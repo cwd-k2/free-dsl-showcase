@@ -20,9 +20,13 @@ nix flake check
 ## 構成
 
 - `src/free.ts`: Generator エフェクトの共通モデルとインタープリタ実行系
-- `src/effects.ts`: `IO` / `Log` エフェクトと、純粋な State・実コンソールのインタープリタ
-- `src/sql.ts`: パラメータ化 SQL の DSL とインタープリタ
-- `src/regex.ts`: 正規表現 DSL、実行可能な `RegExp` と簡潔な source 文字列へのインタープリタ
+- `src/effects.ts`: `IO` / `Log` エフェクトと、比較しやすく並べた State・Console インタープリタ
+- `src/sql/language.ts`: SQL DSL の語彙と、解釈中に構築されるクエリモデル
+- `src/sql/interpreter.ts`: SQL operation をクエリモデルへ畳み込むインタープリタ
+- `src/sql/render.ts`: クエリモデルをパラメータ化 SQL へ変換する純粋なレンダラ
+- `src/regex/language.ts`: 正規表現 DSL の語彙
+- `src/regex/interpreter.ts`: Regex operation に意味を与えるインタープリタ
+- `src/regex/render.ts`: エスケープ、文字クラス、量指定子のレンダリング規則
 - `examples/`: 各 DSL のサンプルプログラム兼 CLI エントリポイント
 - `tests/effects_test.ts`: 同じ対話プログラムの State 実行とコンソール IO 実行
 - `tests/sql_test.ts`: SQL DSL を利用するカート検索プログラムの例
@@ -35,6 +39,10 @@ obsolete syntax、アドレス全体の長さ制約まで含む完全な RFC 532
 正規表現の例は同じ Generator プログラムを `regexInterpreter()` で実行用の `RegExp` に、
 `compactRegexSourceInterpreter()` で `\w`、`\d`、文字範囲などを使った表示用の source 文字列に
 解釈します。
+
+各 DSL は、利用できる語彙を定義する `language.ts`、operation を処理する `interpreter.ts`、最終表現を
+組み立てる `render.ts` の順に読むと、記述・解釈・表示という処理の流れを追えます。外部からは各
+ディレクトリの `mod.ts` を公開 API として利用します。
 
 ## 通常の計算効果: IO と Log
 

@@ -1,10 +1,17 @@
+/**
+ * Dot-atom email example built from the regex DSL. The same generator program produces both an
+ * executable RegExp and a compact source string through different interpretations.
+ *
+ * @module
+ */
+
 import { type Program, run } from "../src/free.ts";
 import {
   compactRegexSourceInterpreter,
   regex,
   type RegexFragment,
   regexInterpreter,
-} from "../src/regex.ts";
+} from "../src/regex/mod.ts";
 
 /**
  * A readable email addr-spec example based on RFC 5322's dot-atom form.
@@ -48,21 +55,26 @@ export function* emailAddressPattern(): Program<RegexFragment> {
 
 export type ParsedEmail = { local: string; domain: string };
 
+/** Compile the example program into an anchored, case-insensitive executable pattern. */
 export function emailRegex(): RegExp {
   return run(emailAddressPattern(), regexInterpreter("i"));
 }
 
+/** Render the example program in the compact form intended for display and inspection. */
 export function emailRegexSource(): string {
   return run(emailAddressPattern(), compactRegexSourceInterpreter());
 }
 
+/** Match an entire input and expose the two named captures as a small domain value. */
 export function parseEmail(input: string, pattern = emailRegex()): ParsedEmail | null {
   const match = pattern.exec(input);
+  // Named groups make the parse result independent of capture ordering in the generated pattern.
   if (!match?.groups) return null;
   return { local: match.groups.local, domain: match.groups.domain };
 }
 
 if (import.meta.main) {
+  // Supplying no arguments still demonstrates both successful and unsuccessful matches.
   const inputs = Deno.args.length > 0
     ? Deno.args
     : ["alice@example.com", "shop+tag@sub.example.co.jp", "not-an-email"];

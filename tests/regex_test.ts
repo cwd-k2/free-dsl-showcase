@@ -1,3 +1,5 @@
+/** Tests shared regex semantics plus the deliberate differences between the two output modes. */
+
 import { emailRegex, emailRegexSource, parseEmail } from "../examples/regex.ts";
 import { type Program, run } from "../src/free.ts";
 import {
@@ -5,7 +7,7 @@ import {
   regex,
   type RegexFragment,
   regexInterpreter,
-} from "../src/regex.ts";
+} from "../src/regex/mod.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
 
 const EMAIL_RE = emailRegex();

@@ -1,3 +1,10 @@
+/**
+ * IO and logging effects with two interpretations: a deterministic in-memory State runtime and
+ * real console IO. Keeping both here makes their behavior straightforward to compare.
+ *
+ * @module
+ */
+
 import { type Interpreter, perform } from "./free.ts";
 
 /** Ordinary console I/O operations available to an application program. */
@@ -11,6 +18,7 @@ export const log = {
   info: (message: string) => perform<void>("log.info", { message }),
 };
 
+/** All inputs and observable events captured by the pure interpreter. */
 export type EffectState = {
   input: string[];
   prompts: string[];
@@ -51,6 +59,7 @@ export function stateInterpreter<A>(
   };
 }
 
+/** Injectable console boundary; tests can substitute it without touching global IO. */
 export type ConsoleRuntime = {
   readLine: (question: string) => string | null;
   writeLine: (text: string) => void;
@@ -63,7 +72,7 @@ const realConsole: ConsoleRuntime = {
   info: (message) => console.error(`[info] ${message}`),
 };
 
-/** Interpret the same effects as real terminal I/O. */
+/** Interpret the same effects as real terminal IO, using an injectable runtime when supplied. */
 export function consoleInterpreter<A>(
   runtime: ConsoleRuntime = realConsole,
 ): Interpreter<null, A> {

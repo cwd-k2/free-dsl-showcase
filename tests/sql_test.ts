@@ -1,6 +1,8 @@
+/** Integration and validation tests for the SQL language, interpreter, and renderer. */
+
 import { cartContentsQuery } from "../examples/sql.ts";
 import { run } from "../src/free.ts";
-import { sql, sqlInterpreter } from "../src/sql.ts";
+import { sql, sqlInterpreter } from "../src/sql/mod.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
 
 Deno.test("cart contents program renders parameterized SQL", () => {
