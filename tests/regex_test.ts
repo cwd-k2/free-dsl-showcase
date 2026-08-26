@@ -15,29 +15,42 @@ import { assertEquals, assertThrows } from "./assert.ts";
  * parser when complete RFC compliance is required.
  */
 function* emailAddressPattern(): Program<RegexFragment> {
+  const { alt, capture, charSet, literal, repeat, seq } = regex;
   const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   const digit = "0123456789";
   const atext = alpha + digit + "!#$%&'*+/=?^_`{|}~-";
 
-  const atom = yield* regex.repeat(yield* regex.charSet(atext), 1);
-  const dot = yield* regex.literal(".");
-  const local = yield* regex.seq(
-    atom,
-    yield* regex.repeat(yield* regex.seq(dot, atom), 0),
-  );
-  const capturedLocal = yield* regex.capture("local", local);
+  // Character sets and literals used by the grammar below.
+  const atomChars = yield* charSet(atext);
+  const alnum = yield* charSet(alpha + digit);
+  const labelMiddleChars = yield* charSet(alpha + digit + "-");
+  const alphaChars = yield* charSet(alpha);
+  const dot = yield* literal(".");
+  const at = yield* literal("@");
 
-  // DNS-style labels keep the example practical: no leading/trailing hyphens,
-  // at most 63 characters per label, and an alphabetic final label.
-  const alnum = yield* regex.charSet(alpha + digit);
-  const labelMiddle = yield* regex.repeat(yield* regex.charSet(alpha + digit + "-"), 0, 61);
-  const label = yield* regex.alt(yield* regex.seq(alnum, labelMiddle, alnum), alnum);
-  const subdomains = yield* regex.repeat(yield* regex.seq(dot, label), 0);
-  const topLevelDomain = yield* regex.repeat(yield* regex.charSet(alpha), 2, 63);
-  const domain = yield* regex.seq(label, subdomains, dot, topLevelDomain);
-  const capturedDomain = yield* regex.capture("domain", domain);
+  const local = yield* (function* (): Program<RegexFragment> {
+    // local-part = atom *("." atom)
+    const atom = yield* repeat(atomChars, 1);
+    const dottedAtom = yield* seq(dot, atom);
+    const remainingAtoms = yield* repeat(dottedAtom, 0);
+    return yield* seq(atom, remainingAtoms);
+  })();
+  const capturedLocal = yield* capture("local", local);
 
-  return yield* regex.seq(capturedLocal, yield* regex.literal("@"), capturedDomain);
+  const domain = yield* (function* (): Program<RegexFragment> {
+    // DNS-style labels keep the example practical: no leading/trailing hyphens,
+    // at most 63 characters per label, and an alphabetic final label.
+    const labelMiddle = yield* repeat(labelMiddleChars, 0, 61);
+    const longLabel = yield* seq(alnum, labelMiddle, alnum);
+    const label = yield* alt(longLabel, alnum);
+    const dottedLabel = yield* seq(dot, label);
+    const subdomains = yield* repeat(dottedLabel, 0);
+    const topLevelDomain = yield* repeat(alphaChars, 2, 63);
+    return yield* seq(label, subdomains, dot, topLevelDomain);
+  })();
+  const capturedDomain = yield* capture("domain", domain);
+
+  return yield* seq(capturedLocal, at, capturedDomain);
 }
 
 type ParsedEmail = { local: string; domain: string };

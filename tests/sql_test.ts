@@ -4,35 +4,54 @@ import { assertEquals, assertThrows } from "./assert.ts";
 
 // The application program is a consumer of the SQL DSL, so it lives with its example test.
 function* cartContentsQuery(cartId: string, userId: string): Program<void> {
-  const carts = yield* sql.table("carts", "c");
-  const items = yield* sql.table("cart_items", "ci");
-  const products = yield* sql.table("products", "p");
+  const {
+    as: selectAs,
+    binary,
+    column,
+    from,
+    join,
+    limit,
+    orderBy,
+    param,
+    select,
+    table,
+    where,
+  } = sql;
 
-  const cartPk = yield* sql.column(carts, "id");
-  const cartOwner = yield* sql.column(carts, "user_id");
-  const itemCartId = yield* sql.column(items, "cart_id");
-  const itemProductId = yield* sql.column(items, "product_id");
-  const quantity = yield* sql.column(items, "quantity");
-  const productPk = yield* sql.column(products, "id");
-  const productName = yield* sql.column(products, "name");
-  const unitPrice = yield* sql.column(products, "unit_price");
+  const carts = yield* table("carts", "c");
+  const items = yield* table("cart_items", "ci");
+  const products = yield* table("products", "p");
 
-  yield* sql.from(carts);
-  yield* sql.join("INNER", items, yield* sql.binary("=", itemCartId, cartPk));
-  yield* sql.join("INNER", products, yield* sql.binary("=", productPk, itemProductId));
-  yield* sql.where(yield* sql.binary("=", cartPk, yield* sql.param(cartId)));
-  yield* sql.where(yield* sql.binary("=", cartOwner, yield* sql.param(userId)));
+  const cartPk = yield* column(carts, "id");
+  const cartOwner = yield* column(carts, "user_id");
+  const itemCartId = yield* column(items, "cart_id");
+  const itemProductId = yield* column(items, "product_id");
+  const quantity = yield* column(items, "quantity", "quantity");
+  const productPk = yield* column(products, "id", "product_id");
+  const productName = yield* column(products, "name", "product_name");
+  const unitPrice = yield* column(products, "unit_price", "unit_price");
 
-  const subtotal = yield* sql.binary("*", quantity, unitPrice);
-  yield* sql.select(
-    yield* sql.as(productPk, "product_id"),
-    yield* sql.as(productName, "product_name"),
-    yield* sql.as(quantity, "quantity"),
-    yield* sql.as(unitPrice, "unit_price"),
-    yield* sql.as(subtotal, "subtotal"),
+  const itemsInCart = yield* binary("=", itemCartId, cartPk);
+  const itemProducts = yield* binary("=", productPk, itemProductId);
+  yield* from(carts);
+  yield* join("INNER", items, itemsInCart);
+  yield* join("INNER", products, itemProducts);
+
+  const requestedCart = yield* binary("=", cartPk, yield* param(cartId));
+  const ownedByUser = yield* binary("=", cartOwner, yield* param(userId));
+  yield* where(requestedCart);
+  yield* where(ownedByUser);
+
+  const subtotal = yield* binary("*", quantity, unitPrice);
+  yield* select(
+    productPk,
+    productName,
+    quantity,
+    unitPrice,
+    yield* selectAs(subtotal, "subtotal"),
   );
-  yield* sql.orderBy(productName);
-  yield* sql.limit(100);
+  yield* orderBy(productName);
+  yield* limit(100);
 }
 
 Deno.test("cart contents program renders parameterized SQL", () => {
@@ -64,6 +83,18 @@ Deno.test("SQL identifiers cannot inject raw SQL", () => {
   assertThrows(
     () => run(invalidQuery(), sqlInterpreter()),
     "Invalid SQL table name",
+  );
+});
+
+Deno.test("SQL column aliases cannot inject raw SQL", () => {
+  function* invalidQuery() {
+    const users = yield* sql.table("users", "u");
+    yield* sql.column(users, "name", 'name" FROM secrets; --');
+  }
+
+  assertThrows(
+    () => run(invalidQuery(), sqlInterpreter()),
+    "Invalid SQL column alias",
   );
 });
 

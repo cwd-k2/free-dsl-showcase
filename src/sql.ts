@@ -2,12 +2,13 @@ import { type Interpreter, perform } from "./free.ts";
 
 export type TableRef = Readonly<{ tag: "table"; name: string; alias: string }>;
 export type SqlExpr =
-  | Readonly<{ tag: "column"; table: TableRef; name: string }>
+  | Readonly<{ tag: "column"; table: TableRef; name: string; alias?: string }>
   | Readonly<{ tag: "param"; value: unknown }>
   | Readonly<{ tag: "binary"; op: SqlBinaryOp; left: SqlExpr; right: SqlExpr }>;
 
 export type SqlBinaryOp = "=" | "<>" | ">" | ">=" | "<" | "<=" | "+" | "-" | "*" | "/";
 export type SelectItem = Readonly<{ expr: SqlExpr; alias?: string }>;
+export type Selectable = SqlExpr | SelectItem;
 type Join = Readonly<{ type: "INNER" | "LEFT"; table: TableRef; on: SqlExpr }>;
 type OrderBy = Readonly<{ expr: SqlExpr; direction: "ASC" | "DESC" }>;
 
@@ -25,7 +26,8 @@ export type Sql = { text: string; params: unknown[] };
 /** Operations available inside a SQL generator program. */
 export const sql = {
   table: (name: string, alias: string) => perform<TableRef>("sql.table", { name, alias }),
-  column: (table: TableRef, name: string) => perform<SqlExpr>("sql.column", { table, name }),
+  column: (table: TableRef, name: string, alias?: string) =>
+    perform<SqlExpr>("sql.column", { table, name, alias }),
   param: <A>(value: A) => perform<SqlExpr>("sql.param", { value }),
   binary: (op: SqlBinaryOp, left: SqlExpr, right: SqlExpr) =>
     perform<SqlExpr>("sql.binary", { op, left, right }),
@@ -34,7 +36,7 @@ export const sql = {
   join: (type: "INNER" | "LEFT", table: TableRef, on: SqlExpr) =>
     perform<void>("sql.join", { type, table, on }),
   where: (expr: SqlExpr) => perform<void>("sql.where", { expr }),
-  select: (...items: SelectItem[]) => perform<void>("sql.select", { items }),
+  select: (...items: Selectable[]) => perform<void>("sql.select", { items }),
   orderBy: (expr: SqlExpr, direction: "ASC" | "DESC" = "ASC") =>
     perform<void>("sql.orderBy", { expr, direction }),
   limit: (count: number) => perform<void>("sql.limit", { count }),
@@ -104,9 +106,10 @@ export function sqlInterpreter(): Interpreter<QueryState, Sql> {
         assertIdent(alias, "table alias");
         return { state, value: { tag: "table", name, alias } satisfies TableRef };
       },
-      "sql.column": (state, { table, name }) => {
+      "sql.column": (state, { table, name, alias }) => {
         assertIdent(name, "column name");
-        return { state, value: { tag: "column", table, name } satisfies SqlExpr };
+        if (alias !== undefined) assertIdent(alias, "column alias");
+        return { state, value: { tag: "column", table, name, alias } satisfies SqlExpr };
       },
       "sql.param": (state, { value }) => ({
         state,
@@ -133,7 +136,14 @@ export function sqlInterpreter(): Interpreter<QueryState, Sql> {
         value: undefined,
       }),
       "sql.select": (state, { items }) => ({
-        state: { ...state, select: items },
+        state: {
+          ...state,
+          select: items.map((item: Selectable) =>
+            "expr" in item
+              ? item
+              : { expr: item, alias: item.tag === "column" ? item.alias : undefined }
+          ),
+        },
         value: undefined,
       }),
       "sql.orderBy": (state, order) => ({
