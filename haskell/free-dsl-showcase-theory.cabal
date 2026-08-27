@@ -1,0 +1,35 @@
+cabal-version: 3.0
+name: free-dsl-showcase-theory
+version: 0.1.0.0
+synopsis: Executable Haskell derivation for the Generator DSL showcase
+license: NONE
+build-type: Simple
+
+common defaults
+  default-language: GHC2021
+  ghc-options: -Wall -Werror
+  build-depends: base >=4.16 && <5
+
+library
+  import: defaults
+  hs-source-dirs: src
+  exposed-modules:
+    Dsl.Continuation
+    Dsl.Coyoneda
+    Dsl.Defunctionalization
+    Dsl.Free
+    Dsl.Freer
+    Dsl.Talk
+
+executable theory-example
+  import: defaults
+  hs-source-dirs: app
+  main-is: Main.hs
+  build-depends: free-dsl-showcase-theory
+
+test-suite theory-test
+  import: defaults
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is: Main.hs
+  build-depends: free-dsl-showcase-theory

@@ -12,7 +12,11 @@
         let pkgs = nixpkgs.legacyPackages.${system};
         in {
           default = pkgs.mkShell {
-            packages = [ pkgs.deno ];
+            packages = [
+              pkgs.cabal-install
+              pkgs.deno
+              pkgs.ghc
+            ];
           };
         });
 
@@ -31,6 +35,13 @@
             deno task test
             touch "$out"
           '';
+
+          haskell = pkgs.haskell.lib.doCheck (
+            pkgs.haskellPackages.callCabal2nix
+              "free-dsl-showcase-theory"
+              ./haskell
+              { }
+          );
         });
     };
 }

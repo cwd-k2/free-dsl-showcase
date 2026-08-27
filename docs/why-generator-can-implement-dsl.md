@@ -574,10 +574,11 @@ Interpreter    操作に意味を与え、結果を返して Generator を進め
 3. `src/dsl/effects/state.ts` と `console.ts` — 同じ操作への二つの意味を比較する
 4. `src/dsl/regex/language.ts` と `interpreter.ts` — 構築系 DSL の戻り値がどう合成されるかを見る
 5. `examples/shipment-investigation.ts` — 分岐、反復、早期終了を含む業務手続きを見る
+6. `haskell/src/Dsl/` — CPS から `Done` / `Await` までの実行可能な導出を比較する
 
 本章は、このリポジトリだけで「操作要求と1ステップの中断・再開」から Generator 実装までを
 追えることを目標にしている。CPS、Defunctionalization、Free Monad、Coyoneda、Freer Monad を順に
-実装して比較する Haskell コードも、別リポジトリを前提にせず、このリポジトリへ追加する。
+実装して比較する Haskell コードも `haskell/` に含めている。
 
 ## 参考文献
 

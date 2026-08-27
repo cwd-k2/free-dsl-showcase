@@ -18,6 +18,15 @@ deno task check
 deno task test
 ```
 
+同じ開発環境には GHC と cabal も含まれます。理論説明に対応する Haskell 実装は次のように
+実行できます。
+
+```nu
+cd haskell
+cabal test
+cabal run theory-example
+```
+
 Nix だけで全チェックを再現する場合は次を実行します。
 
 ```nu
@@ -56,6 +65,10 @@ dsl/{effects,events,vdom} ──────────────────
                                                 ▼
                                            core/free
 ```
+
+`haskell/` には、CPS、Defunctionalization、Free、Coyoneda、Freer、ステップ実行を順に比較する
+実行可能な補助実装があります。TypeScript 側の `perform` / `run` に到達する理論上の構造を、この
+リポジトリだけで確認できます。詳しくは [`haskell/README.md`](haskell/README.md) を参照してください。
 
 `deno.json` の import map で `@/` を `src/` に割り当てています。層や DSL をまたぐ依存は
 `@/core/free.ts`、`@/dsl/sql/mod.ts` のようにルートから記述し、同じモジュール内の参照には
