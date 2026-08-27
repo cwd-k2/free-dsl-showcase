@@ -1,10 +1,10 @@
 /** Direct parser execution tests, including backtracking that a naive parser would miss. */
 
-import { between, map, oneOfCharacters, parse, sequence, text } from "@/dsl/parser/mod.ts";
+import { oneOfCharacters, parse, sequence, text } from "@/dsl/parser/mod.ts";
 import { assertEquals } from "./assert.ts";
 
 Deno.test("repeat backtracks when a following parser needs an earlier character", () => {
-  const letters = map(between(oneOfCharacters("ab"), 1, 3), (value) => value.join(""));
+  const letters = oneOfCharacters("ab").repeat(1, 3).map((value) => value.join(""));
   const parser = sequence(letters, text("b"));
 
   assertEquals(parse(parser, "aab"), {

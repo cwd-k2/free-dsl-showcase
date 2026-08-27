@@ -9,11 +9,12 @@ export {
   named,
   oneOfCharacters,
   oneOrMore,
+  Parser,
   repeated,
   separatedBy,
   sequence,
   text,
   zeroOrMore,
 } from "./language.ts";
-export type { Captures, Parser, Pattern } from "./language.ts";
+export type { Captures, Pattern } from "./language.ts";
 export { lowerToRegex } from "./lowering.ts";

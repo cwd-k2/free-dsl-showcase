@@ -2,16 +2,11 @@
 
 import { type Program, run } from "@/core/free.ts";
 import {
-  between,
   choice,
   lowerToRegex,
-  map,
-  named,
   oneOfCharacters,
-  oneOrMore,
   parse,
   type Parser,
-  separatedBy,
   sequence,
   text,
 } from "@/dsl/parser/mod.ts";
@@ -29,20 +24,16 @@ const joinCharacters = (characters: readonly string[]): string => characters.joi
 
 /** One or more atoms separated by dots, with no leading, trailing, or consecutive dot. */
 function dotAtom(characters: string): Parser<string> {
-  const atom = map(oneOrMore(oneOfCharacters(characters)), joinCharacters);
-  return map(separatedBy(atom, text(".")), (parts) => parts.join("."));
+  const atom = oneOfCharacters(characters).oneOrMore().map(joinCharacters);
+  return atom.separatedBy(text(".")).map((parts) => parts.join("."));
 }
 
 /** An RFC-style domain label: one alphanumeric, or 2–63 chars bounded by alphanumerics. */
 function domainLabel(): Parser<string> {
   const alphaNumeric = oneOfCharacters(ALPHA + DIGIT);
-  const middle = map(
-    between(oneOfCharacters(ALPHA + DIGIT + "-"), 0, 61),
-    joinCharacters,
-  );
+  const middle = oneOfCharacters(ALPHA + DIGIT + "-").repeat(0, 61).map(joinCharacters);
 
-  const longLabel = map(
-    sequence(alphaNumeric, middle, alphaNumeric),
+  const longLabel = sequence(alphaNumeric, middle, alphaNumeric).map(
     ([first, rest, last]) => first + rest + last,
   );
 
@@ -51,11 +42,10 @@ function domainLabel(): Parser<string> {
 
 /** A dotted sequence of labels followed by a 2–63 letter top-level domain. */
 function domainName(): Parser<string> {
-  const labels = separatedBy(domainLabel(), text("."));
-  const topLevelDomain = map(between(oneOfCharacters(ALPHA), 2, 63), joinCharacters);
+  const labels = domainLabel().separatedBy(text("."));
+  const topLevelDomain = oneOfCharacters(ALPHA).repeat(2, 63).map(joinCharacters);
 
-  return map(
-    sequence(labels, text("."), topLevelDomain),
+  return sequence(labels, text("."), topLevelDomain).map(
     ([parts, dot, topLevel]) => parts.join(".") + dot + topLevel,
   );
 }
@@ -66,12 +56,11 @@ export type ParsedEmail = Readonly<{ local: string; domain: string }>;
  * A real Parser value for the readable RFC 5322 dot-atom subset. It directly produces a domain
  * value; its structural grammar can independently be lowered into the Regex DSL.
  */
-export const emailAddressParser: Parser<ParsedEmail> = map(
-  sequence(
-    named("local", dotAtom(ATEXT)),
-    text("@"),
-    named("domain", domainName()),
-  ),
+export const emailAddressParser: Parser<ParsedEmail> = sequence(
+  dotAtom(ATEXT).named("local"),
+  text("@"),
+  domainName().named("domain"),
+).map(
   ([local, _at, domain]) => ({ local, domain }),
 );
 

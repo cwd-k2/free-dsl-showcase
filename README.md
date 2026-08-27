@@ -71,17 +71,17 @@ dsl/{effects,events,vdom} ──────────────────
 obsolete syntax、アドレス全体の長さ制約まで含む完全な RFC 5322 検証には、正規表現ではなく専用の
 パーサーが適しています。
 
-メールアドレス例は、`text`、`sequence`、`oneOrMore`、`separatedBy`、`map` などから構成する独立した
-`Parser<A>` です。入力位置を進めながらバックトラックでき、`parse(emailAddressParser, input)` は
-JavaScript の `RegExp` を使わずに入力全体を解析して、型付きの `{ local, domain }` を返します。
+メールアドレス例は、`text`、`sequence` と、Parser の `oneOrMore`、`separatedBy`、`map`
+などから構成します。独立した `Parser<A>` として入力位置を進めながらバックトラックでき、
+`parse(emailAddressParser, input)` は JavaScript の `RegExp` を使わずに入力全体を解析して、型付きの
+`{ local, domain }` を返します。
 
 ```ts
-export const emailAddressParser = map(
-  sequence(
-    named("local", dotAtom(ATEXT)),
-    text("@"),
-    named("domain", domainName()),
-  ),
+export const emailAddressParser = sequence(
+  dotAtom(ATEXT).named("local"),
+  text("@"),
+  domainName().named("domain"),
+).map(
   ([local, _at, domain]) => ({ local, domain }),
 );
 ```
