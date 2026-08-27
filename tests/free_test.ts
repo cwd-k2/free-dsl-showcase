@@ -1,6 +1,6 @@
 /** Behavioral tests for operation dispatch, state threading, and missing-handler failures. */
 
-import { perform, type Program, run, runAsync } from "../src/free.ts";
+import { perform, type Program, run, runAsync } from "../src/core/free.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
 
 Deno.test("run threads state and operation results through a program", () => {

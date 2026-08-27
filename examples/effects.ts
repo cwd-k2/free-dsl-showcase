@@ -5,8 +5,8 @@
  * @module
  */
 
-import { consoleInterpreter, io, log } from "../src/effects.ts";
-import { type Program, run } from "../src/free.ts";
+import { type Program, run } from "../src/core/free.ts";
+import { consoleInterpreter, io, log } from "../src/dsl/effects/mod.ts";
 
 /** An application program that describes effects without choosing how to execute them. */
 export function* greet(): Program<string> {

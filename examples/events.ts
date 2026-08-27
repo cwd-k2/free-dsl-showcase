@@ -1,7 +1,7 @@
 /** A cart process whose control flow is hosted by the event-system DSL. */
 
-import { asyncEventRuntimeInterpreter, events, replayInterpreter } from "../src/events/mod.ts";
-import { type Program, run, runAsync } from "../src/free.ts";
+import { type Program, run, runAsync } from "../src/core/free.ts";
+import { asyncEventRuntimeInterpreter, events, replayInterpreter } from "../src/dsl/events/mod.ts";
 
 export type CartEvent =
   | Readonly<{ type: "item-added"; sku: string; quantity: number }>

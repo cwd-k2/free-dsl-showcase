@@ -1,7 +1,13 @@
 /** A semantic component vocabulary lowered to the small VDOM construction language. */
 
-import { type Program, run } from "../src/free.ts";
-import { element, htmlInterpreter, vdom, vdomInterpreter, type VNode } from "../src/vdom/mod.ts";
+import { type Program, run } from "../src/core/free.ts";
+import {
+  element,
+  htmlInterpreter,
+  vdom,
+  vdomInterpreter,
+  type VNode,
+} from "../src/dsl/vdom/mod.ts";
 
 export type Product = Readonly<{
   name: string;

@@ -6,13 +6,13 @@
     "lineWidth": 100
   },
   "tasks": {
-    "check": "deno fmt --check && deno lint && deno check src/*.ts src/**/*.ts examples/*.ts tests/*.ts",
+    "check": "deno fmt --check && deno lint && deno check src/core/free.ts src/dsl/*/mod.ts src/domain/*/mod.ts examples/*.ts examples/**/*.ts tests/*.ts",
     "test": "deno test",
     "showcase:effects": "deno run examples/effects.ts",
-    "showcase:sql": "deno run examples/sql.ts",
-    "showcase:sql-primitives": "deno run examples/sql-primitives.ts",
-    "showcase:regex": "deno run examples/regex.ts",
-    "showcase:regex-primitives": "deno run examples/regex-primitives.ts",
+    "showcase:cart-query": "deno run examples/cart/query.ts",
+    "showcase:cart-sql-primitives": "deno run examples/cart/sql-primitives.ts",
+    "showcase:email-parser": "deno run examples/email/parser.ts",
+    "showcase:email-regex-primitives": "deno run examples/email/regex-primitives.ts",
     "showcase:investigation": "deno run examples/shipment-investigation.ts",
     "showcase:vdom": "deno run examples/vdom.ts",
     "showcase:events": "deno run examples/events.ts"

@@ -21,28 +21,44 @@ nix flake check
 
 ## 構成
 
-- `src/free.ts`: Generator operation の共通モデルと同期 / 非同期インタープリタ実行系
-- `src/effects.ts`: `IO` / `Log` エフェクトと、比較しやすく並べた State・Console インタープリタ
-- `src/parser/`: 型付き Parser、直接実行するインタープリタ、Regex DSL への lowering
-- `src/cart-query/`: カート検索の高級operation、AST interpreter、SQL DSL への lowering
-- `src/sql/language.ts`: SQL DSL の語彙と、解釈中に構築されるクエリモデル
-- `src/sql/interpreter.ts`: SQL operation をクエリモデルへ畳み込むインタープリタ
-- `src/sql/render.ts`: クエリモデルをパラメータ化 SQL へ変換する純粋なレンダラ
-- `src/regex/language.ts`: 正規表現 DSL の語彙
-- `src/regex/interpreter.ts`: Regex operation に意味を与えるインタープリタ
-- `src/regex/render.ts`: エスケープ、文字クラス、量指定子のレンダリング規則
-- `src/vdom/`: UI の木を構築し、VDOM または HTML として取り出す構築系 DSL
-- `src/events/`: イベントの受信と発行を記述し、履歴または外部ランタイム上で動かす処理系 DSL
-- `src/shipment/`: 配送調査の業務語彙と、Regex / SQL DSL への展開
-- `examples/sql.ts`: 通常の制御構文で書いたカート検索usecaseをPlanまたはSQLに解釈する例
-- `examples/sql-primitives.ts`: 同じクエリを低レベル SQL primitive だけで組み立てる比較例
-- `examples/regex.ts`: 型付き Parser でメールアドレスを記述し、直接実行または Regex へ lower する例
-- `examples/regex-primitives.ts`: 同じパターンを低レベル Regex primitive だけで組み立てる比較例
+ソースは、汎用性と依存方向に沿って3層に分けています。
+
+```text
+src/
+├── core/
+│   └── free.ts            Generator operation と interpreter 実行系
+├── dsl/                   再利用可能な DSL ライブラリ
+│   ├── effects/           IO / Log と State・Console interpreter
+│   ├── events/            イベントの受信・発行と runtime interpreter
+│   ├── regex/             Regex operation と source / RegExp interpreter
+│   ├── sql/               SQL operation、query model、renderer
+│   ├── vdom/              VDOM operation と VNode / HTML interpreter
+│   └── parser/            型付き Parser と Regex DSL への lowering
+└── domain/                実際の構造・業務手続きに近い DSL
+    ├── cart-query/         カート検索 plan と SQL DSL への lowering
+    └── shipment/           配送調査の語彙と Regex / SQL DSL への展開
+```
+
+依存は下向きだけです。`parser` は単独の低レベル DSL ではなく、`regex` を再利用して別の解釈を
+提供する一段上のライブラリです。`domain` は汎用 DSL を組み合わせますが、逆向きの依存はありません。
+
+```text
+domain/cart-query ───────────────→ dsl/sql ──────┐
+domain/shipment ──┬──────────────→ dsl/sql ──────┤
+                  └──────────────→ dsl/regex ────┤
+dsl/parser ──────────────────────→ dsl/regex ────┤
+dsl/{effects,events,vdom} ───────────────────────┤
+                                                ▼
+                                           core/free
+```
+
+- `examples/cart/`: カート検索usecaseと、低レベル SQL primitive による比較例
+- `examples/email/`: 型付きメール Parser と、低レベル Regex primitive による比較例
 - `examples/`: その他の DSL サンプルプログラム兼 CLI エントリポイント
 - `tests/effects_test.ts`: 同じ対話プログラムの State 実行とコンソール IO 実行
 - `tests/parser_test.ts`: 直接Parser実行のバックトラック、失敗位置、Unicode文字単位
-- `tests/sql_test.ts`: SQL DSL を利用するカート検索プログラムの例
-- `tests/regex_test.ts`: RFC 5322 の dot-atom を意識したメールアドレスパターンの例
+- `tests/cart_query_test.ts`: SQL DSL を利用するカート検索プログラムの例
+- `tests/email_parser_test.ts`: RFC 5322 の dot-atom を意識したメールアドレスパターンの例
 - `tests/vdom_test.ts`: 同じ UI 構築プログラムの VDOM / HTML 解釈
 - `tests/events_test.ts`: カート処理の決定的リプレイと外部イベントランタイム解釈
 - `tests/shipment_test.ts`: 分岐、反復、早期終了を含む配送調査手続きの例
@@ -77,7 +93,7 @@ source 文字列を得られます。値への `map` は直接Parser実行だけ
                     └─ lowerToRegex ───→ Regex DSL ──→ RegExp / source
 ```
 
-`examples/regex-primitives.ts` には同じメールパターンを
+`examples/email/regex-primitives.ts` には同じメールパターンを
 `regex.literal`、`regex.charSet`、`regex.seq`、 `regex.repeat`
 などだけで構築した比較例があります。Parser AST から lower した正規言語と、raw primitive から生成した
 compact source / `RegExp` が一致することをテストしています。
@@ -119,7 +135,7 @@ const plan = run(cartContentsQuery(cartId, userId), cartQueryPlanInterpreter());
 const query = run(cartContentsQuery(cartId, userId), cartQuerySqlInterpreter());
 ```
 
-テーブル、カラム、JOIN、比較式、射影は `src/cart-query/sql.ts` のloweringにだけ現れます。
+テーブル、カラム、JOIN、比較式、射影は `src/domain/cart-query/lowering.ts` にだけ現れます。
 
 ```text
 cart usecase
@@ -128,8 +144,8 @@ cart usecase
        └─ CartContentsPlan ──→ lowering ──→ SQL DSL ──→ parameterized SQL
 ```
 
-対比のため、`examples/sql-primitives.ts` には同じクエリを `sql.table`、`sql.column`、`sql.join`、
-`sql.binary` などだけで構築した例を分離して置いています。こちらでは実装上の手順を追えますが、
+対比用の `examples/cart/sql-primitives.ts` は、同じクエリを低レベル語彙だけで構築します。
+`sql.table`、`sql.column`、`sql.join`、`sql.binary` などの実装上の手順を追えますが、
 「カート内容を誰の権限で、どのように提示するか」という意図は読み取りにくくなります。テストでは
 高級ASTからlowerした結果とraw primitive版のSQL・パラメータが完全に一致することを確認しています。
 
@@ -216,8 +232,8 @@ deno task showcase:investigation --explain invalid
 ```
 
 この例の下位層を確認するときは、参照番号を Regex DSL へ展開する
-`src/shipment/reference.ts`、業務上の検索操作を SQL DSL へ展開する
-`src/shipment/order-search.ts`、両方を一度に扱う `src/shipment/interpreter.ts`
+`src/domain/shipment/reference.ts`、業務上の検索操作を SQL DSL へ展開する
+`src/domain/shipment/order-search.ts`、両方を一度に扱う `src/domain/shipment/interpreter.ts`
 の順に読むと流れを追えます。
 
 ## 構築系 DSL: VDOM
@@ -326,14 +342,14 @@ const greeting = run(greet(), consoleInterpreter<string>());
 deno task showcase:effects
 
 # SQL: cart ID と user ID は省略可能
-deno task showcase:sql cart-42 user-7
+deno task showcase:cart-query cart-42 user-7
 
 # Regex: 引数を省略すると組み込みの3例を使う
-deno task showcase:regex alice@example.com invalid-address
+deno task showcase:email-parser alice@example.com invalid-address
 
 # 比較用: 同じ出力を素の DSL primitive から生成する
-deno task showcase:sql-primitives cart-42 user-7
-deno task showcase:regex-primitives
+deno task showcase:cart-sql-primitives cart-42 user-7
+deno task showcase:email-regex-primitives
 
 # Advanced: SQL / Regex を隠した配送調査手続き
 deno task showcase:investigation --explain --fraud --detail=customer TYO/ORD-2026-00421
@@ -345,11 +361,12 @@ deno task showcase:vdom
 deno task showcase:events
 ```
 
-`showcase:sql` はlowering前の高級AST、生成したパラメータ化SQL、パラメータ配列を表示します。
-`showcase:regex` はlowerした正規表現に加えて、直接Parser実行による各入力の解析結果または失敗位置を
-表示します。 `*-primitives` の2つは、対応する推奨例と同じ最終表現を低レベル語彙から直接生成します。
-`showcase:investigation` は通常は業務上の調査方針だけを表示し、`--explain` 指定時に限って下位の
-Regex / SQL 表現を表示します。
+`showcase:cart-query` はlowering前の高級AST、生成したパラメータ化SQL、パラメータ配列を表示します。
+`showcase:email-parser` はlowerした正規表現を表示します。さらに、直接Parser実行による各入力の
+解析結果または失敗位置も表示します。 `*-primitives`
+の2つは、対応する推奨例と同じ最終表現を低レベル語彙から直接生成します。 `showcase:investigation`
+は通常は業務上の調査方針だけを表示し、`--explain` 指定時に限って下位の Regex / SQL
+表現を表示します。
 
 `showcase:vdom` は構築した木と HTML を並べます。`showcase:events`
 は消費・発行イベントと最終状態を含むリプレイ結果を表示します。

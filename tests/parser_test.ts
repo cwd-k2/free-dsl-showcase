@@ -1,6 +1,6 @@
 /** Direct parser execution tests, including backtracking that a naive parser would miss. */
 
-import { between, map, oneOfCharacters, parse, sequence, text } from "../src/parser/mod.ts";
+import { between, map, oneOfCharacters, parse, sequence, text } from "../src/dsl/parser/mod.ts";
 import { assertEquals } from "./assert.ts";
 
 Deno.test("repeat backtracks when a following parser needs an earlier character", () => {

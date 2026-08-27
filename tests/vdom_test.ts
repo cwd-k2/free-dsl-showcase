@@ -1,8 +1,8 @@
 /** Construction, alternate interpretation, escaping, and validation tests for the VDOM DSL. */
 
 import { catalogPage, sampleProducts } from "../examples/vdom.ts";
-import { run } from "../src/free.ts";
-import { htmlInterpreter, vdom, vdomInterpreter } from "../src/vdom/mod.ts";
+import { run } from "../src/core/free.ts";
+import { htmlInterpreter, vdom, vdomInterpreter } from "../src/dsl/vdom/mod.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
 
 Deno.test("one construction program produces both VDOM and HTML", () => {
