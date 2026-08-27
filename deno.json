@@ -13,6 +13,8 @@
     "showcase:sql-primitives": "deno run examples/sql-primitives.ts",
     "showcase:regex": "deno run examples/regex.ts",
     "showcase:regex-primitives": "deno run examples/regex-primitives.ts",
-    "showcase:investigation": "deno run examples/shipment-investigation.ts"
+    "showcase:investigation": "deno run examples/shipment-investigation.ts",
+    "showcase:vdom": "deno run examples/vdom.ts",
+    "showcase:events": "deno run examples/events.ts"
   }
 }

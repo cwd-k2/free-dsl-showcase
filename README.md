@@ -1,8 +1,9 @@
 # Free Generator DSL Showcase
 
-Deno の Generator をエフェクト列として使い、同じ小さなインタープリタ基盤から IO / Log、SQL、
-正規表現の DSL を構築するショーケースです。プリミティブを直接組み立てる例に加えて、通常の `if` /
-`for` / 早期 `return` で書いた業務手続きを regex と SQL へ落とす高度な例も含みます。
+Deno の Generator を operation 列として使い、同じ小さなインタープリタ基盤から IO / Log、SQL、
+正規表現、VDOM、イベント処理の DSL を構築するショーケースです。プリミティブを直接組み立てる例に
+加えて、通常の `if` / `for` / 早期 `return` で書いた業務手続きを regex と SQL へ落とす高度な例も
+含みます。
 
 ## 開発環境
 
@@ -20,7 +21,7 @@ nix flake check
 
 ## 構成
 
-- `src/free.ts`: Generator エフェクトの共通モデルとインタープリタ実行系
+- `src/free.ts`: Generator operation の共通モデルと同期 / 非同期インタープリタ実行系
 - `src/effects.ts`: `IO` / `Log` エフェクトと、比較しやすく並べた State・Console インタープリタ
 - `src/sql/language.ts`: SQL DSL の語彙と、解釈中に構築されるクエリモデル
 - `src/sql/interpreter.ts`: SQL operation をクエリモデルへ畳み込むインタープリタ
@@ -28,6 +29,8 @@ nix flake check
 - `src/regex/language.ts`: 正規表現 DSL の語彙
 - `src/regex/interpreter.ts`: Regex operation に意味を与えるインタープリタ
 - `src/regex/render.ts`: エスケープ、文字クラス、量指定子のレンダリング規則
+- `src/vdom/`: UI の木を構築し、VDOM または HTML として取り出す構築系 DSL
+- `src/events/`: イベントの受信と発行を記述し、履歴または外部ランタイム上で動かす処理系 DSL
 - `src/shipment/`: 配送調査の業務語彙と、Regex / SQL DSL への展開
 - `examples/sql.ts`: 意味論パーツからカート内容を記述する、推奨する SQL DSL 利用例
 - `examples/sql-primitives.ts`: 同じクエリを低レベル SQL primitive だけで組み立てる比較例
@@ -37,6 +40,8 @@ nix flake check
 - `tests/effects_test.ts`: 同じ対話プログラムの State 実行とコンソール IO 実行
 - `tests/sql_test.ts`: SQL DSL を利用するカート検索プログラムの例
 - `tests/regex_test.ts`: RFC 5322 の dot-atom を意識したメールアドレスパターンの例
+- `tests/vdom_test.ts`: 同じ UI 構築プログラムの VDOM / HTML 解釈
+- `tests/events_test.ts`: カート処理の決定的リプレイと外部イベントランタイム解釈
 - `tests/shipment_test.ts`: 分岐、反復、早期終了を含む配送調査手続きの例
 
 メールアドレス例は読みやすさを優先したサブセットです。quoted-string、コメント、domain-literal、
@@ -164,6 +169,73 @@ deno task showcase:investigation --explain invalid
 `src/shipment/order-search.ts`、両方を一度に扱う `src/shipment/interpreter.ts`
 の順に読むと流れを追えます。
 
+## 構築系 DSL: VDOM
+
+`examples/vdom.ts` は、まず利用する element を小さな HTML 語彙として定義します。
+
+```ts
+const main = element("main");
+const h1 = element("h1");
+const ul = element("ul");
+const li = element("li");
+```
+
+`availabilityBadge`、`productCard`、`catalogPage` はこの語彙を再利用します。各 operation
+の結果を次へ渡し、最後に不変な木を一つ作ります。
+
+```ts
+const title = yield * h1({}, yield * text("Catalog"));
+const list = yield * ul({ class: "products" }, ...cards);
+
+return yield * main({ id: "catalog" }, title, list);
+```
+
+同じ `catalogPage(...)` を `vdomInterpreter()` で解釈すると、diffing や別レンダラへ渡せる `VNode`
+になります。`htmlInterpreter()` で解釈すると、エスケープ済み HTML になります。
+
+ここで Generator は時間方向の処理ではなく、子から親へ値を組み上げる構築記述として働きます。
+
+```text
+意味のある UI 部品 → VDOM primitive → VNode
+                                   └──→ HTML
+```
+
+## 処理系 DSL: イベントシステム
+
+`examples/events.ts` の `cartProcess` は、イベントを一件受け取るたびに Generator が再開します。
+ローカルなカート状態を更新し、派生イベントを発行します。
+
+イベント種別ごとの分岐、入力検証、処理継続、checkout 後の早期 `return` は普通の TypeScript
+制御構文です。
+
+```ts
+while (true) {
+  const event = yield * events.next<CartEvent>();
+  if (event === null) return snapshot(items, "open");
+
+  switch (event.type) {
+    // 状態更新と yield* events.publish(...)
+  }
+}
+```
+
+`replayInterpreter(history)` は入力、消費済みイベント、未消費イベント、発行イベント、戻り値をすべて
+データとして返すため、障害調査や単体テストを決定的に行えます。`eventRuntimeInterpreter(runtime)` に
+差し替えると、同じ処理プログラムを同期的なキューアダプタ上で動かせます。
+
+Promise ベースのキューやブローカーでは `runAsync` と `asyncEventRuntimeInterpreter(runtime)` を
+組み合わせます。`cartProcess` 自体は書き換えず、`receive` と `publish` の完了だけを runner
+が待ちます。
+
+この例では 「イベントハンドラを組み立てる」のではなく、外部から届く値によって継続する処理そのものが
+DSL 上の プログラムです。
+
+```text
+イベント履歴 ──→ cartProcess ──→ 派生イベント + 最終状態
+同期ランタイム ──────┤
+非同期ランタイム ────┘
+```
+
 ## 通常の計算効果: IO と Log
 
 `examples/effects.ts` の `greet` は、実行方法を決めずに `IO` と `Log` の効果だけを記述します。
@@ -214,6 +286,12 @@ deno task showcase:regex-primitives
 
 # Advanced: SQL / Regex を隠した配送調査手続き
 deno task showcase:investigation --explain --fraud --detail=customer TYO/ORD-2026-00421
+
+# Construction: 同じ UI を VDOM と HTML に解釈する
+deno task showcase:vdom
+
+# Processing: カートのイベント履歴をリプレイする
+deno task showcase:events
 ```
 
 `showcase:sql` は生成したパラメータ化 SQL とパラメータ配列を表示します。`showcase:regex` は生成した
@@ -221,3 +299,6 @@ deno task showcase:investigation --explain --fraud --detail=customer TYO/ORD-202
 `*-primitives` の2つは、対応する推奨例と同じ最終表現を低レベル語彙から直接生成します。
 `showcase:investigation` は通常は業務上の調査方針だけを表示し、`--explain` 指定時に限って下位の
 Regex / SQL 表現を表示します。
+
+`showcase:vdom` は構築した木と HTML を並べます。`showcase:events`
+は消費・発行イベントと最終状態を含むリプレイ結果を表示します。

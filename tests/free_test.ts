@@ -1,6 +1,6 @@
 /** Behavioral tests for operation dispatch, state threading, and missing-handler failures. */
 
-import { perform, type Program, run } from "../src/free.ts";
+import { perform, type Program, run, runAsync } from "../src/free.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
 
 Deno.test("run threads state and operation results through a program", () => {
@@ -30,4 +30,21 @@ Deno.test("run rejects operations missing from an interpreter", () => {
     () => run(program(), { initial: () => null, handlers: {}, finish: () => undefined }),
     "Unhandled op: missing",
   );
+});
+
+Deno.test("runAsync awaits operation handlers without changing the program", async () => {
+  function* program(): Program<string> {
+    const value = yield* perform<string>("read");
+    return `received: ${value}`;
+  }
+
+  const result = await runAsync(program(), {
+    initial: () => Promise.resolve(null),
+    handlers: {
+      read: (state) => Promise.resolve({ state, value: "event" }),
+    },
+    finish: (_state, value) => Promise.resolve(value as string),
+  });
+
+  assertEquals(result, "received: event");
 });

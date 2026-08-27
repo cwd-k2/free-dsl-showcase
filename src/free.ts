@@ -32,11 +32,23 @@ export type Step<S> = { state: S; value: unknown };
 // deno-lint-ignore no-explicit-any
 export type Handler<S> = (state: S, payload: any) => Step<S>;
 
+export type Awaitable<A> = A | PromiseLike<A>;
+
+// deno-lint-ignore no-explicit-any
+export type AsyncHandler<S> = (state: S, payload: any) => Awaitable<Step<S>>;
+
 /** Everything needed to give operations meaning and turn a finished program into output. */
 export type Interpreter<S, Out> = {
   initial: () => S;
   handlers: Record<string, Handler<S>>;
   finish: (state: S, returnValue: unknown) => Out;
+};
+
+/** An interpreter whose setup, handlers, and finalization may cross async I/O boundaries. */
+export type AsyncInterpreter<S, Out> = {
+  initial: () => Awaitable<S>;
+  handlers: Record<string, AsyncHandler<S>>;
+  finish: (state: S, returnValue: unknown) => Awaitable<Out>;
 };
 
 /** Interpret a generator program by dispatching operations and feeding handler values back in. */
@@ -56,4 +68,28 @@ export function run<A, S, Out>(program: Program<A>, interpreter: Interpreter<S, 
   }
 
   return interpreter.finish(state, step.value);
+}
+
+/**
+ * Run the same Generator program while awaiting asynchronous interpreter boundaries. The DSL
+ * remains synchronous-looking; the selected interpreter decides whether an operation needs I/O.
+ */
+export async function runAsync<A, S, Out>(
+  program: Program<A>,
+  interpreter: AsyncInterpreter<S, Out>,
+): Promise<Out> {
+  let state = (await interpreter.initial()) as S;
+  let step = program.next();
+
+  while (!step.done) {
+    const op = step.value;
+    const handler = interpreter.handlers[op.kind];
+    if (!handler) throw new Error(`Unhandled op: ${op.kind}`);
+
+    const handled = await handler(state, op.payload);
+    state = handled.state;
+    step = program.next(handled.value);
+  }
+
+  return await interpreter.finish(state, step.value);
 }
