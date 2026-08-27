@@ -12,6 +12,7 @@
     "check": "deno fmt --check && deno lint && deno check src/core/free.ts src/dsl/*/mod.ts src/domain/*/mod.ts examples/*.ts examples/**/*.ts tests/*.ts",
     "test": "deno test",
     "showcase:effects": "deno run examples/effects.ts",
+    "showcase:effects:perl": "perl -Iperl/lib perl/examples/effects.pl",
     "showcase:cart-query": "deno run examples/cart/query.ts",
     "showcase:cart-sql-primitives": "deno run examples/cart/sql-primitives.ts",
     "showcase:email-parser": "deno run examples/email/parser.ts",

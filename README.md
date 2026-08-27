@@ -18,13 +18,15 @@ deno task check
 deno task test
 ```
 
-同じ開発環境には GHC と cabal も含まれます。理論説明に対応する Haskell 実装は次のように
-実行できます。
+同じ開発環境には GHC、cabal、Perl も含まれます。理論説明に対応する Haskell 実装と、継続を
+クロージャとして明示した Perl 実装は次のように実行できます。
 
 ```nu
 cd haskell
 cabal test
 cabal run theory-example
+cd ..
+prove -Iperl/lib perl/t
 ```
 
 Nix だけで全チェックを再現する場合は次を実行します。
@@ -69,6 +71,11 @@ dsl/{effects,events,vdom} ──────────────────
 `haskell/` には、CPS、Defunctionalization、Free、Coyoneda、Freer、ステップ実行を順に比較する
 実行可能な補助実装があります。TypeScript 側の `perform` / `run` に到達する理論上の構造を、この
 リポジトリだけで確認できます。詳しくは [`haskell/README.md`](haskell/README.md) を参照してください。
+
+`perl/` には、TypeScript の `greet` と同じ DSL プログラムをコンパイル時変換し、
+`Done | Await operation continuation` として実行する CPAN 依存なしの実装があります。Generator
+の内部状態に保存される後続を Perl のクロージャとして生成する比較例です。詳しくは
+[`perl/README.md`](perl/README.md) を参照してください。
 
 `deno.json` の import map で `@/` を `src/` に割り当てています。層や DSL をまたぐ依存は
 `@/core/free.ts`、`@/dsl/sql/mod.ts` のようにルートから記述し、同じモジュール内の参照には
@@ -362,6 +369,9 @@ const greeting = run(greet(), consoleInterpreter<string>());
 ```nu
 # IO / Log: 名前を対話入力する
 deno task showcase:effects
+
+# 同じ IO / Log 例を、継続を明示した Perl 実装で実行する
+deno task showcase:effects:perl
 
 # SQL: cart ID と user ID は省略可能
 deno task showcase:cart-query cart-42 user-7

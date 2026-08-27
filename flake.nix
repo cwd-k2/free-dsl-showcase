@@ -16,6 +16,7 @@
               pkgs.cabal-install
               pkgs.deno
               pkgs.ghc
+              pkgs.perl
             ];
           };
         });
@@ -42,6 +43,16 @@
               ./haskell
               { }
           );
+
+          perl = pkgs.runCommand "free-dsl-showcase-perl-check" {
+            nativeBuildInputs = [ pkgs.perl ];
+            src = self;
+          } ''
+            cp -R "$src" source
+            cd source
+            prove -Iperl/lib perl/t
+            touch "$out"
+          '';
         });
     };
 }
