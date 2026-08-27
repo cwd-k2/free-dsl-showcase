@@ -1,135 +1,115 @@
-/**
- * A small parser vocabulary built as aliases over the low-level regex DSL. Writing an email
- * parser with that vocabulary produces both an executable RegExp and a compact source string.
- *
- * @module
- */
+/** A typed email parser that can also be lowered into the regular-expression DSL. */
 
 import { type Program, run } from "../src/free.ts";
 import {
+  between,
+  choice,
+  lowerToRegex,
+  map,
+  named,
+  oneOfCharacters,
+  oneOrMore,
+  parse,
+  type Parser,
+  separatedBy,
+  sequence,
+  text,
+} from "../src/parser/mod.ts";
+import {
   compactRegexSourceInterpreter,
-  regex,
   type RegexFragment,
   regexInterpreter,
 } from "../src/regex/mod.ts";
 
-/** A parser is only a readable name for the fragment produced by the regex DSL. */
-type Parser = RegexFragment;
+const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const DIGIT = "0123456789";
+const ATEXT = ALPHA + DIGIT + "!#$%&'*+/=?^_`{|}~-";
 
-// These helpers add no new operations. Each one expands directly to the low-level vocabulary in
-// `src/regex/language.ts`; they merely let the grammar below read like a parser definition.
-function* text(value: string): Program<Parser> {
-  return yield* regex.literal(value);
+const joinCharacters = (characters: readonly string[]): string => characters.join("");
+
+/** One or more atoms separated by dots, with no leading, trailing, or consecutive dot. */
+function dotAtom(characters: string): Parser<string> {
+  const atom = map(oneOrMore(oneOfCharacters(characters)), joinCharacters);
+  return map(separatedBy(atom, text(".")), (parts) => parts.join("."));
 }
 
-function* oneOfCharacters(characters: string): Program<Parser> {
-  return yield* regex.charSet(characters);
+/** An RFC-style domain label: one alphanumeric, or 2–63 chars bounded by alphanumerics. */
+function domainLabel(): Parser<string> {
+  const alphaNumeric = oneOfCharacters(ALPHA + DIGIT);
+  const middle = map(
+    between(oneOfCharacters(ALPHA + DIGIT + "-"), 0, 61),
+    joinCharacters,
+  );
+
+  const longLabel = map(
+    sequence(alphaNumeric, middle, alphaNumeric),
+    ([first, rest, last]) => first + rest + last,
+  );
+
+  return choice(longLabel, alphaNumeric);
 }
 
-function* sequence(...parsers: Parser[]): Program<Parser> {
-  return yield* regex.seq(...parsers);
+/** A dotted sequence of labels followed by a 2–63 letter top-level domain. */
+function domainName(): Parser<string> {
+  const labels = separatedBy(domainLabel(), text("."));
+  const topLevelDomain = map(between(oneOfCharacters(ALPHA), 2, 63), joinCharacters);
+
+  return map(
+    sequence(labels, text("."), topLevelDomain),
+    ([parts, dot, topLevel]) => parts.join(".") + dot + topLevel,
+  );
 }
 
-function* choice(...parsers: Parser[]): Program<Parser> {
-  return yield* regex.alt(...parsers);
-}
-
-function* repeated(parser: Parser, min: number, max?: number): Program<Parser> {
-  return yield* regex.repeat(parser, min, max);
-}
-
-function* zeroOrMore(parser: Parser): Program<Parser> {
-  return yield* repeated(parser, 0);
-}
-
-function* oneOrMore(parser: Parser): Program<Parser> {
-  return yield* repeated(parser, 1);
-}
-
-function* between(min: number, max: number, parser: Parser): Program<Parser> {
-  return yield* repeated(parser, min, max);
-}
-
-function* named(name: string, parser: Parser): Program<Parser> {
-  return yield* regex.capture(name, parser);
-}
-
-function* separatedBy(parser: Parser, separator: Parser): Program<Parser> {
-  const followingItem = yield* sequence(separator, parser);
-  return yield* sequence(parser, yield* zeroOrMore(followingItem));
-}
+export type ParsedEmail = Readonly<{ local: string; domain: string }>;
 
 /**
- * A readable email addr-spec parser based on RFC 5322's dot-atom form.
- *
- * It intentionally omits quoted strings, comments, domain literals, obsolete
- * syntax, and whole-address length limits. Those are better handled by a real
- * parser when complete RFC compliance is required.
+ * A real Parser value for the readable RFC 5322 dot-atom subset. It directly produces a domain
+ * value; its structural grammar can independently be lowered into the Regex DSL.
  */
-export function* emailAddressParser(): Program<Parser> {
-  const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  const digit = "0123456789";
-  const atext = alpha + digit + "!#$%&'*+/=?^_`{|}~-";
+export const emailAddressParser: Parser<ParsedEmail> = map(
+  sequence(
+    named("local", dotAtom(ATEXT)),
+    text("@"),
+    named("domain", domainName()),
+  ),
+  ([local, _at, domain]) => ({ local, domain }),
+);
 
-  const dot = yield* text(".");
-  const atomCharacter = yield* oneOfCharacters(atext);
-  const atom = yield* oneOrMore(atomCharacter);
-  const localPart = yield* separatedBy(atom, dot);
-
-  const alphaNumeric = yield* oneOfCharacters(alpha + digit);
-  const labelMiddleCharacter = yield* oneOfCharacters(alpha + digit + "-");
-  const longLabel = yield* sequence(
-    alphaNumeric,
-    yield* between(0, 61, labelMiddleCharacter),
-    alphaNumeric,
-  );
-  const label = yield* choice(longLabel, alphaNumeric);
-  const subdomains = yield* separatedBy(label, dot);
-  const topLevelDomain = yield* between(2, 63, yield* oneOfCharacters(alpha));
-  const domain = yield* sequence(subdomains, dot, topLevelDomain);
-
-  const capturedLocalPart = yield* named("local", localPart);
-  const capturedDomain = yield* named("domain", domain);
-  return yield* sequence(capturedLocalPart, yield* text("@"), capturedDomain);
-}
-
-/** Backwards-compatible name emphasizing the compiled representation rather than its source. */
+/** Lower the parser grammar into the Regex DSL for either regex interpretation. */
 export function emailAddressPattern(): Program<RegexFragment> {
-  return emailAddressParser();
+  return lowerToRegex(emailAddressParser);
 }
 
-export type ParsedEmail = { local: string; domain: string };
-
-/** Compile the example program into an anchored, case-insensitive executable pattern. */
 export function emailRegex(): RegExp {
-  return run(emailAddressParser(), regexInterpreter("i"));
+  return run(emailAddressPattern(), regexInterpreter("i"));
 }
 
-/** Render the example program in the compact form intended for display and inspection. */
 export function emailRegexSource(): string {
-  return run(emailAddressParser(), compactRegexSourceInterpreter());
+  return run(emailAddressPattern(), compactRegexSourceInterpreter());
 }
 
-/** Match an entire input and expose the two named captures as a small domain value. */
-export function parseEmail(input: string, pattern = emailRegex()): ParsedEmail | null {
-  const match = pattern.exec(input);
-  // Named groups make the parse result independent of capture ordering in the generated pattern.
-  if (!match?.groups) return null;
-  return { local: match.groups.local, domain: match.groups.domain };
+/** Parse without RegExp: the parser interpreter consumes the complete input and returns a value. */
+export function parseEmail(input: string): ParsedEmail | null {
+  const result = parse(emailAddressParser, input);
+  return result.ok ? result.value : null;
 }
 
 if (import.meta.main) {
-  // Supplying no arguments still demonstrates both successful and unsuccessful matches.
   const inputs = Deno.args.length > 0
     ? Deno.args
     : ["alice@example.com", "shop+tag@sub.example.co.jp", "not-an-email"];
-  const pattern = emailRegex();
 
-  console.log(`regex: ${emailRegexSource()}`);
+  console.log(`lowered regex: ${emailRegexSource()}`);
+
   for (const input of inputs) {
-    const parsed = parseEmail(input, pattern);
-    console.log(
-      `${parsed ? "match" : "no match"}: ${input}${parsed ? ` ${JSON.stringify(parsed)}` : ""}`,
-    );
+    const result = parse(emailAddressParser, input);
+
+    if (result.ok) {
+      console.log(`match: ${input} ${JSON.stringify(result.value)}`);
+    } else {
+      console.log(
+        `no match: ${input} at ${result.position}, expected ${result.expected.join(" or ")}`,
+      );
+    }
   }
 }

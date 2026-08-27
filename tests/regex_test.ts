@@ -1,8 +1,9 @@
 /** Tests shared regex semantics plus the deliberate differences between the two output modes. */
 
 import { primitiveEmailRegex, primitiveEmailRegexSource } from "../examples/regex-primitives.ts";
-import { emailRegex, emailRegexSource, parseEmail } from "../examples/regex.ts";
+import { emailAddressParser, emailRegex, emailRegexSource, parseEmail } from "../examples/regex.ts";
 import { type Program, run } from "../src/free.ts";
+import { parse } from "../src/parser/mod.ts";
 import {
   compactRegexSourceInterpreter,
   regex,
@@ -11,17 +12,16 @@ import {
 } from "../src/regex/mod.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
 
-const EMAIL_RE = emailRegex();
 const EMAIL_SOURCE = emailRegexSource();
 
 Deno.test("email example accepts and captures dot-atom addresses", () => {
   console.log(`generated email regexp: ${EMAIL_SOURCE}`);
 
-  assertEquals(parseEmail("alice@example.com", EMAIL_RE), {
+  assertEquals(parseEmail("alice@example.com"), {
     local: "alice",
     domain: "example.com",
   });
-  assertEquals(parseEmail("shop+tag@sub.example.co.jp", EMAIL_RE), {
+  assertEquals(parseEmail("shop+tag@sub.example.co.jp"), {
     local: "shop+tag",
     domain: "sub.example.co.jp",
   });
@@ -39,8 +39,16 @@ Deno.test("email example rejects forms outside its documented subset", () => {
       "prefix alice@example.com suffix",
     ]
   ) {
-    assertEquals(parseEmail(input, EMAIL_RE), null);
+    assertEquals(parseEmail(input), null);
   }
+});
+
+Deno.test("email parser executes without using RegExp and returns typed values", () => {
+  assertEquals(parse(emailAddressParser, "alice@example.com"), {
+    ok: true,
+    value: { local: "alice", domain: "example.com" },
+    captures: { local: "alice", domain: "example.com" },
+  });
 });
 
 Deno.test("parser vocabulary and raw primitives lower to the same patterns", () => {

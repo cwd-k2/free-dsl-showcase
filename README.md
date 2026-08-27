@@ -23,6 +23,7 @@ nix flake check
 
 - `src/free.ts`: Generator operation の共通モデルと同期 / 非同期インタープリタ実行系
 - `src/effects.ts`: `IO` / `Log` エフェクトと、比較しやすく並べた State・Console インタープリタ
+- `src/parser/`: 型付き Parser、直接実行するインタープリタ、Regex DSL への lowering
 - `src/sql/language.ts`: SQL DSL の語彙と、解釈中に構築されるクエリモデル
 - `src/sql/interpreter.ts`: SQL operation をクエリモデルへ畳み込むインタープリタ
 - `src/sql/render.ts`: クエリモデルをパラメータ化 SQL へ変換する純粋なレンダラ
@@ -34,10 +35,11 @@ nix flake check
 - `src/shipment/`: 配送調査の業務語彙と、Regex / SQL DSL への展開
 - `examples/sql.ts`: 意味論パーツからカート内容を記述する、推奨する SQL DSL 利用例
 - `examples/sql-primitives.ts`: 同じクエリを低レベル SQL primitive だけで組み立てる比較例
-- `examples/regex.ts`: parser 語彙でメールアドレスを記述する、推奨する Regex DSL 利用例
+- `examples/regex.ts`: 型付き Parser でメールアドレスを記述し、直接実行または Regex へ lower する例
 - `examples/regex-primitives.ts`: 同じパターンを低レベル Regex primitive だけで組み立てる比較例
 - `examples/`: その他の DSL サンプルプログラム兼 CLI エントリポイント
 - `tests/effects_test.ts`: 同じ対話プログラムの State 実行とコンソール IO 実行
+- `tests/parser_test.ts`: 直接Parser実行のバックトラック、失敗位置、Unicode文字単位
 - `tests/sql_test.ts`: SQL DSL を利用するカート検索プログラムの例
 - `tests/regex_test.ts`: RFC 5322 の dot-atom を意識したメールアドレスパターンの例
 - `tests/vdom_test.ts`: 同じ UI 構築プログラムの VDOM / HTML 解釈
@@ -48,18 +50,36 @@ nix flake check
 obsolete syntax、アドレス全体の長さ制約まで含む完全な RFC 5322 検証には、正規表現ではなく専用の
 パーサーが適しています。
 
-正規表現の例では、`regex.literal`、`regex.seq`、`regex.repeat` などの低レベル operation に、
-`text`、`sequence`、`oneOrMore`、`separatedBy`、`named` という人が読みやすい薄い parser 語彙を
-かぶせています。この語彙でメールアドレスの parser を書き、同じ Generator プログラムを
-`regexInterpreter()` で解釈すると実行用の `RegExp` に、`compactRegexSourceInterpreter()`
-で解釈すると `\w`、`\d`、文字範囲などを使った表示用の source 文字列になります。つまり「parser
-としての記述が、解釈によって正規表現になる」例です。
+メールアドレス例は、`text`、`sequence`、`oneOrMore`、`separatedBy`、`map` などから構成する独立した
+`Parser<A>` です。入力位置を進めながらバックトラックでき、`parse(emailAddressParser, input)` は
+JavaScript の `RegExp` を使わずに入力全体を解析して、型付きの `{ local, domain }` を返します。
+
+```ts
+export const emailAddressParser = map(
+  sequence(
+    named("local", dotAtom(ATEXT)),
+    text("@"),
+    named("domain", domainName()),
+  ),
+  ([local, _at, domain]) => ({ local, domain }),
+);
+```
+
+Parser は受理する構造を AST としても保持します。その正規言語部分を `lowerToRegex()` で既存 Regex DSL
+へ落とすと、`regexInterpreter()` から実行用 `RegExp`、`compactRegexSourceInterpreter()` から表示用
+source 文字列を得られます。値への `map` は直接Parser実行だけに意味を持ち、Regex lowering
+では受理する構造だけが使われます。
+
+```text
+                    ┌─ parse ──────────→ ParsedEmail / ParseFailure
+メール Parser AST ─┤
+                    └─ lowerToRegex ───→ Regex DSL ──→ RegExp / source
+```
 
 `examples/regex-primitives.ts` には同じメールパターンを
 `regex.literal`、`regex.charSet`、`regex.seq`、 `regex.repeat`
-などだけで構築した比較例があります。両者から生成した compact source と実行用 `RegExp`
-が一致することをテストし、parser 語彙が正規表現の能力を増やす魔法ではなく、低レベルな
-構造へ人が読める意味を与える層であることを明示しています。
+などだけで構築した比較例があります。Parser AST から lower した正規言語と、raw primitive から生成した
+compact source / `RegExp` が一致することをテストしています。
 
 SQL の例も同じ考え方ですが、構文の別名ではなくドメインの意味まで一段上げています。クエリ本体が
 扱うのは `contentsOfCart`、`forOwner`、`describeEachLine`、`alphabeticalByProduct`、`takeAtMost`
@@ -294,8 +314,8 @@ deno task showcase:vdom
 deno task showcase:events
 ```
 
-`showcase:sql` は生成したパラメータ化 SQL とパラメータ配列を表示します。`showcase:regex` は生成した
-正規表現に加えて、各入力の match 結果とキャプチャした `local` / `domain` を表示します。
+`showcase:sql` は生成したパラメータ化 SQL とパラメータ配列を表示します。`showcase:regex` は lower
+した正規表現に加えて、直接Parser実行による各入力の解析結果または失敗位置を表示します。
 `*-primitives` の2つは、対応する推奨例と同じ最終表現を低レベル語彙から直接生成します。
 `showcase:investigation` は通常は業務上の調査方針だけを表示し、`--explain` 指定時に限って下位の
 Regex / SQL 表現を表示します。

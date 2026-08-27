@@ -13,7 +13,7 @@ import {
   regexInterpreter,
 } from "../src/regex/mod.ts";
 
-/** Build the same email pattern as `emailAddressParser`, using only raw regex DSL primitives. */
+/** Build the same regular language as the email Parser AST, using raw Regex DSL primitives. */
 export function* primitiveEmailAddressPattern(): Program<RegexFragment> {
   const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   const digit = "0123456789";
