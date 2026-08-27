@@ -5,6 +5,11 @@ Deno の Generator を operation 列として使い、同じ小さなインタ�
 加えて、通常の `if` / `for` / 早期 `return` で書いた業務手続きを regex と SQL へ落とす高度な例も
 含みます。
 
+詳しい説明: [`なぜ Generator で DSL を実装できるのか`](docs/why-generator-can-implement-dsl.md)
+
+操作を自由代数として捉え、代数的エフェクトの `perform` / handler、限定継続による
+「次の1ステップ」、Generator の `yield` / `next` へ順に対応づけます。
+
 ## 開発環境
 
 ```nu
