@@ -24,6 +24,7 @@ nix flake check
 - `src/free.ts`: Generator operation の共通モデルと同期 / 非同期インタープリタ実行系
 - `src/effects.ts`: `IO` / `Log` エフェクトと、比較しやすく並べた State・Console インタープリタ
 - `src/parser/`: 型付き Parser、直接実行するインタープリタ、Regex DSL への lowering
+- `src/cart-query/`: カート検索の高級operation、AST interpreter、SQL DSL への lowering
 - `src/sql/language.ts`: SQL DSL の語彙と、解釈中に構築されるクエリモデル
 - `src/sql/interpreter.ts`: SQL operation をクエリモデルへ畳み込むインタープリタ
 - `src/sql/render.ts`: クエリモデルをパラメータ化 SQL へ変換する純粋なレンダラ
@@ -33,7 +34,7 @@ nix flake check
 - `src/vdom/`: UI の木を構築し、VDOM または HTML として取り出す構築系 DSL
 - `src/events/`: イベントの受信と発行を記述し、履歴または外部ランタイム上で動かす処理系 DSL
 - `src/shipment/`: 配送調査の業務語彙と、Regex / SQL DSL への展開
-- `examples/sql.ts`: 意味論パーツからカート内容を記述する、推奨する SQL DSL 利用例
+- `examples/sql.ts`: 通常の制御構文で書いたカート検索usecaseをPlanまたはSQLに解釈する例
 - `examples/sql-primitives.ts`: 同じクエリを低レベル SQL primitive だけで組み立てる比較例
 - `examples/regex.ts`: 型付き Parser でメールアドレスを記述し、直接実行または Regex へ lower する例
 - `examples/regex-primitives.ts`: 同じパターンを低レベル Regex primitive だけで組み立てる比較例
@@ -81,30 +82,60 @@ source 文字列を得られます。値への `map` は直接Parser実行だけ
 などだけで構築した比較例があります。Parser AST から lower した正規言語と、raw primitive から生成した
 compact source / `RegExp` が一致することをテストしています。
 
-SQL の例も同じ考え方ですが、構文の別名ではなくドメインの意味まで一段上げています。クエリ本体が
-扱うのは `contentsOfCart`、`forOwner`、`describeEachLine`、`alphabeticalByProduct`、`takeAtMost`
-です。テーブル、カラム、JOIN、比較演算、射影はこの語彙を SQL DSL へ展開する層にだけ現れます。
+SQL の例では、usecaseが高級ASTを直接組み立てるのではなく、高級operationを手続き的に発行します。
+扱う語彙は `contentsOfCart`、`visibleToOwner`、`describeEachLine`、`orderByProductName`、
+`takeAtMost` です。
 
 ```ts
 const contents = yield * contentsOfCart(cartId);
-yield * contents.forOwner(userId);
+
+yield * contents.visibleToOwner(userId);
 yield * contents.describeEachLine();
-yield * contents.alphabeticalByProduct();
-yield * contents.takeAtMost(100);
+
+if (options.alphabetical !== false) {
+  yield * contents.orderByProductName();
+}
+
+if (options.limit !== null) {
+  yield * contents.takeAtMost(options.limit ?? 100);
+}
 ```
 
-この例が表すのは「SQL を読みやすく書く」だけではなく、「取得したいものの意味を記述し、それを SQL
-として解釈する」という層の分離です。
+usecaseはSQL、schema、AST、loweringを知りません。通常の `if` / `for` / 早期 `return`
+をそのまま使えることが、Generatorで手続きを記述する利点です。
+
+高級operationを `cartQueryPlanInterpreter()` で解釈すると、認可と提示方法を明示した
+`CartContentsPlan` を観察できます。visibilityやpresentationの欠けた手続きは、解釈の完了時に
+拒否されます。
+
+```ts
+const plan = run(cartContentsQuery(cartId, userId), cartQueryPlanInterpreter());
+```
+
+通常実行では `cartQuerySqlInterpreter()` に差し替えるだけです。interpreterの完了処理が内部でASTを
+確定し、SQL DSLへlowerするため、一回の評価から完成したクエリが返ります。
+
+```ts
+const query = run(cartContentsQuery(cartId, userId), cartQuerySqlInterpreter());
+```
+
+テーブル、カラム、JOIN、比較式、射影は `src/cart-query/sql.ts` のloweringにだけ現れます。
+
+```text
+cart usecase
+  ├─ cartQueryPlanInterpreter ──→ CartContentsPlan
+  └─ cartQuerySqlInterpreter
+       └─ CartContentsPlan ──→ lowering ──→ SQL DSL ──→ parameterized SQL
+```
 
 対比のため、`examples/sql-primitives.ts` には同じクエリを `sql.table`、`sql.column`、`sql.join`、
 `sql.binary` などだけで構築した例を分離して置いています。こちらでは実装上の手順を追えますが、
 「カート内容を誰の権限で、どのように提示するか」という意図は読み取りにくくなります。テストでは
-両方を解釈した SQL とパラメータが完全に一致することを確認しているため、次の対比を出力の違いと
-混同せずに読めます。
+高級ASTからlowerした結果とraw primitive版のSQL・パラメータが完全に一致することを確認しています。
 
 ```text
-推奨:  業務の意味 → 意味論パーツ → SQL primitive → SQL
-対比:  SQL primitive の直接列挙 ─────────────→ SQL
+推奨:  usecase → 高級operation → interpreter内でAST / lowering → SQL
+対比:  SQL primitive の直接列挙 ─────────────────────────→ SQL
 ```
 
 各 DSL は、利用できる語彙を定義する `language.ts`、operation を処理する `interpreter.ts`、最終表現を
@@ -314,9 +345,9 @@ deno task showcase:vdom
 deno task showcase:events
 ```
 
-`showcase:sql` は生成したパラメータ化 SQL とパラメータ配列を表示します。`showcase:regex` は lower
-した正規表現に加えて、直接Parser実行による各入力の解析結果または失敗位置を表示します。
-`*-primitives` の2つは、対応する推奨例と同じ最終表現を低レベル語彙から直接生成します。
+`showcase:sql` はlowering前の高級AST、生成したパラメータ化SQL、パラメータ配列を表示します。
+`showcase:regex` はlowerした正規表現に加えて、直接Parser実行による各入力の解析結果または失敗位置を
+表示します。 `*-primitives` の2つは、対応する推奨例と同じ最終表現を低レベル語彙から直接生成します。
 `showcase:investigation` は通常は業務上の調査方針だけを表示し、`--explain` 指定時に限って下位の
 Regex / SQL 表現を表示します。
 

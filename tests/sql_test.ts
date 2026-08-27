@@ -2,12 +2,17 @@
 
 import { primitiveCartContentsQuery } from "../examples/sql-primitives.ts";
 import { cartContentsQuery } from "../examples/sql.ts";
+import {
+  cartQueryPlanInterpreter,
+  cartQuerySqlInterpreter,
+  contentsOfCart,
+} from "../src/cart-query/mod.ts";
 import { run } from "../src/free.ts";
 import { sql, sqlInterpreter } from "../src/sql/mod.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
 
-Deno.test("cart contents program renders parameterized SQL", () => {
-  const result = run(cartContentsQuery("cart-42", "user-7"), sqlInterpreter());
+Deno.test("one use-case interpretation returns parameterized SQL", () => {
+  const result = run(cartContentsQuery("cart-42", "user-7"), cartQuerySqlInterpreter());
 
   assertEquals(result.params, ["cart-42", "user-7"]);
   assertEquals(
@@ -27,11 +32,50 @@ LIMIT 100`,
   );
 });
 
-Deno.test("domain vocabulary and raw primitives lower to the same query", () => {
-  const semantic = run(cartContentsQuery("cart-42", "user-7"), sqlInterpreter());
+Deno.test("cart contents query is inspectable before SQL lowering", () => {
+  const plan = run(cartContentsQuery("cart-42", "user-7"), cartQueryPlanInterpreter());
+
+  assertEquals(plan, {
+    kind: "cart-contents",
+    cartId: "cart-42",
+    visibility: { kind: "owner", userId: "user-7" },
+    presentation: { kind: "line-summary" },
+    ordering: { kind: "product-name", direction: "ascending" },
+    limit: 100,
+  });
+});
+
+Deno.test("ordinary conditionals change the accumulated query plan", () => {
+  const plan = run(
+    cartContentsQuery("cart-42", "user-7", { alphabetical: false, limit: null }),
+    cartQueryPlanInterpreter(),
+  );
+
+  assertEquals(plan, {
+    kind: "cart-contents",
+    cartId: "cart-42",
+    visibility: { kind: "owner", userId: "user-7" },
+    presentation: { kind: "line-summary" },
+  });
+});
+
+Deno.test("domain plan and raw primitives lower to the same query", () => {
+  const semantic = run(cartContentsQuery("cart-42", "user-7"), cartQuerySqlInterpreter());
   const primitive = run(primitiveCartContentsQuery("cart-42", "user-7"), sqlInterpreter());
 
   assertEquals(semantic, primitive);
+});
+
+Deno.test("cart use cases require visibility before they can be lowered", () => {
+  function* insecureQuery() {
+    const contents = yield* contentsOfCart("cart-42");
+    yield* contents.describeEachLine();
+  }
+
+  assertThrows(
+    () => run(insecureQuery(), cartQuerySqlInterpreter()),
+    "Cart contents plan requires visibility",
+  );
 });
 
 Deno.test("SQL identifiers cannot inject raw SQL", () => {
