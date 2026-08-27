@@ -10,14 +10,14 @@ import {
   primitiveEmailRegex,
   primitiveEmailRegexSource,
 } from "../examples/email/regex-primitives.ts";
-import { type Program, run } from "../src/core/free.ts";
-import { parse } from "../src/dsl/parser/mod.ts";
+import { type Program, run } from "@/core/free.ts";
+import { parse } from "@/dsl/parser/mod.ts";
 import {
   compactRegexSourceInterpreter,
   regex,
   type RegexFragment,
   regexInterpreter,
-} from "../src/dsl/regex/mod.ts";
+} from "@/dsl/regex/mod.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
 
 const EMAIL_SOURCE = emailRegexSource();

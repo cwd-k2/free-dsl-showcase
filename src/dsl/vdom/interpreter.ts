@@ -1,6 +1,6 @@
 /** Interpreters that expose a constructed VDOM tree or immediately render it as HTML. */
 
-import type { Interpreter } from "../../core/free.ts";
+import type { Interpreter } from "@/core/free.ts";
 import type { VNode } from "./language.ts";
 import { assertHtmlName, renderHtml } from "./render.ts";
 

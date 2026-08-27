@@ -7,8 +7,8 @@ import {
   type CartSnapshot,
   runOnAsyncQueue,
 } from "../examples/events.ts";
-import { run } from "../src/core/free.ts";
-import { eventRuntimeInterpreter, replayInterpreter } from "../src/dsl/events/mod.ts";
+import { run } from "@/core/free.ts";
+import { eventRuntimeInterpreter, replayInterpreter } from "@/dsl/events/mod.ts";
 import { assertEquals } from "./assert.ts";
 
 Deno.test("cart process deterministically replays an event history", () => {

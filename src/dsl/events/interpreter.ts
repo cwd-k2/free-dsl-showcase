@@ -1,6 +1,6 @@
 /** Deterministic replay and runtime-backed interpreters for event-processing programs. */
 
-import type { AsyncInterpreter, Awaitable, Interpreter } from "../../core/free.ts";
+import type { AsyncInterpreter, Awaitable, Interpreter } from "@/core/free.ts";
 import type { Event } from "./language.ts";
 
 export type ReplayState<EIn extends Event, EOut extends Event> = {

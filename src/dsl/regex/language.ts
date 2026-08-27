@@ -5,7 +5,7 @@
  * @module
  */
 
-import { perform } from "../../core/free.ts";
+import { perform } from "@/core/free.ts";
 
 /** Interpreter-produced fragment passed between regex operations inside a program. */
 export type RegexFragment = Readonly<{ tag: "regex"; source: string }>;

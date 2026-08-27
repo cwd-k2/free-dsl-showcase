@@ -1,7 +1,7 @@
 /** Interpret one procedural use case as an inspectable plan or a fully lowered SQL query. */
 
-import { type Handler, type Interpreter, run } from "../../core/free.ts";
-import { type Sql, sqlInterpreter } from "../../dsl/sql/mod.ts";
+import { type Handler, type Interpreter, run } from "@/core/free.ts";
+import { type Sql, sqlInterpreter } from "@/dsl/sql/mod.ts";
 import type {
   CartContentsPlan,
   CartOrdering,

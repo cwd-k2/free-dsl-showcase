@@ -5,13 +5,13 @@
  * @module
  */
 
-import { type Program, run } from "../../src/core/free.ts";
+import { type Program, run } from "@/core/free.ts";
 import {
   compactRegexSourceInterpreter,
   regex,
   type RegexFragment,
   regexInterpreter,
-} from "../../src/dsl/regex/mod.ts";
+} from "@/dsl/regex/mod.ts";
 
 /** Build the same regular language as the email Parser AST, using raw Regex DSL primitives. */
 export function* primitiveEmailAddressPattern(): Program<RegexFragment> {

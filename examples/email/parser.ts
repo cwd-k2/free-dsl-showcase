@@ -1,6 +1,6 @@
 /** A typed email parser that can also be lowered into the regular-expression DSL. */
 
-import { type Program, run } from "../../src/core/free.ts";
+import { type Program, run } from "@/core/free.ts";
 import {
   between,
   choice,
@@ -14,12 +14,12 @@ import {
   separatedBy,
   sequence,
   text,
-} from "../../src/dsl/parser/mod.ts";
+} from "@/dsl/parser/mod.ts";
 import {
   compactRegexSourceInterpreter,
   type RegexFragment,
   regexInterpreter,
-} from "../../src/dsl/regex/mod.ts";
+} from "@/dsl/regex/mod.ts";
 
 const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 const DIGIT = "0123456789";

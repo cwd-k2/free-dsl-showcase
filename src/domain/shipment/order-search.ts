@@ -1,7 +1,7 @@
 /** Business-level order-search procedures lowered to the private SQL vocabulary. */
 
-import type { Program } from "../../core/free.ts";
-import { type Selectable, sql, type SqlExpr } from "../../dsl/sql/mod.ts";
+import type { Program } from "@/core/free.ts";
+import { type Selectable, sql, type SqlExpr } from "@/dsl/sql/mod.ts";
 import {
   investigation,
   type InvestigationDecision,

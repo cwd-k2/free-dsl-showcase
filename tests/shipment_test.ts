@@ -1,8 +1,8 @@
 /** Integration tests for the high-level procedural shipment example. */
 
 import { investigateShipment } from "../examples/shipment-investigation.ts";
-import { run } from "../src/core/free.ts";
-import { investigationInterpreter, type Operator } from "../src/domain/shipment/mod.ts";
+import { run } from "@/core/free.ts";
+import { investigationInterpreter, type Operator } from "@/domain/shipment/mod.ts";
 import { assert, assertEquals } from "./assert.ts";
 
 const SUPPORT: Operator = {

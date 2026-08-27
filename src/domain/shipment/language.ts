@@ -1,6 +1,6 @@
 /** Domain vocabulary for the shipment-investigation program. */
 
-import { perform } from "../../core/free.ts";
+import { perform } from "@/core/free.ts";
 
 export type Warehouse = "TYO" | "OSA" | "FUK";
 export type ReferenceFormat = "warehouse-first" | "order-first" | "legacy";

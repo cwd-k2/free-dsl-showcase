@@ -1,7 +1,7 @@
 /** Lower the regular subset of the Parser grammar into the existing Regex operation DSL. */
 
-import type { Program } from "../../core/free.ts";
-import { regex, type RegexFragment } from "../regex/mod.ts";
+import type { Program } from "@/core/free.ts";
+import { regex, type RegexFragment } from "@/dsl/regex/mod.ts";
 import type { Parser, Pattern } from "./language.ts";
 
 function* lowerPattern(pattern: Pattern): Program<RegexFragment> {

@@ -4,8 +4,8 @@ import {
   cartQueryPlanInterpreter,
   cartQuerySqlInterpreter,
   contentsOfCart,
-} from "../../src/domain/cart-query/mod.ts";
-import { type Program, run } from "../../src/core/free.ts";
+} from "@/domain/cart-query/mod.ts";
+import { type Program, run } from "@/core/free.ts";
 
 export type CartQueryOptions = Readonly<{
   alphabetical?: boolean;

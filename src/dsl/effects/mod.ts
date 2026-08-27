@@ -5,7 +5,7 @@
  * @module
  */
 
-import { type Interpreter, perform } from "../../core/free.ts";
+import { type Interpreter, perform } from "@/core/free.ts";
 
 /** Ordinary console I/O operations available to an application program. */
 export const io = {

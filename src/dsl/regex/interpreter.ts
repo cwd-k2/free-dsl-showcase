@@ -5,7 +5,7 @@
  * @module
  */
 
-import type { Interpreter } from "../../core/free.ts";
+import type { Interpreter } from "@/core/free.ts";
 import type { RegexFragment } from "./language.ts";
 import { escapeRegex, quantifier, renderCharClass } from "./render.ts";
 

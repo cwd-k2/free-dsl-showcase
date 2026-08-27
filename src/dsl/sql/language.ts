@@ -5,7 +5,7 @@
  * @module
  */
 
-import { perform } from "../../core/free.ts";
+import { perform } from "@/core/free.ts";
 
 /** A validated table reference used by column expressions and query clauses. */
 export type TableRef = Readonly<{ tag: "table"; name: string; alias: string }>;

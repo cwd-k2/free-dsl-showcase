@@ -1,6 +1,6 @@
 /** Public vocabulary and immutable tree model for the VDOM construction DSL. */
 
-import { perform, type Program } from "../../core/free.ts";
+import { perform, type Program } from "@/core/free.ts";
 
 export type AttributeValue = string | number | boolean | null | undefined;
 export type Attributes = Readonly<Record<string, AttributeValue>>;

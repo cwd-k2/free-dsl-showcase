@@ -1,12 +1,12 @@
 /** Compile accepted business reference formats through the lower-level regex DSL. */
 
-import { type Program, run } from "../../core/free.ts";
+import { type Program, run } from "@/core/free.ts";
 import {
   compactRegexSourceInterpreter,
   regex,
   type RegexFragment,
   regexInterpreter,
-} from "../../dsl/regex/mod.ts";
+} from "@/dsl/regex/mod.ts";
 import type { OrderReference, ReferenceFormat, Warehouse } from "./language.ts";
 
 export type ReferencePolicy = Readonly<{

@@ -4,7 +4,7 @@
  * @module
  */
 
-import { type Program, run } from "../src/core/free.ts";
+import { type Program, run } from "@/core/free.ts";
 import {
   beginOrderSearch,
   investigation,
@@ -14,7 +14,7 @@ import {
   type InvestigationOutput,
   type Operator,
   references,
-} from "../src/domain/shipment/mod.ts";
+} from "@/domain/shipment/mod.ts";
 
 /**
  * Describe the investigation with normal control flow and domain words. Neither SQL nor regular

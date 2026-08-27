@@ -6,8 +6,8 @@
  * @module
  */
 
-import { type Program, run } from "../../src/core/free.ts";
-import { sql, sqlInterpreter } from "../../src/dsl/sql/mod.ts";
+import { type Program, run } from "@/core/free.ts";
+import { sql, sqlInterpreter } from "@/dsl/sql/mod.ts";
 
 /** Build the same query as `cartContentsQuery`, using only raw SQL DSL primitives. */
 export function* primitiveCartContentsQuery(cartId: string, userId: string): Program<void> {

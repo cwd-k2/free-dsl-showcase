@@ -1,6 +1,6 @@
 /** Pull/publish vocabulary for generator programs hosted by an event runtime. */
 
-import { perform } from "../../core/free.ts";
+import { perform } from "@/core/free.ts";
 
 export type Event = Readonly<{ type: string }>;
 

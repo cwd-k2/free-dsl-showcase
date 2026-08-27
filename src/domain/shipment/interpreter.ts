@@ -1,9 +1,9 @@
 /** Interpreter combining domain operations with an embedded SQL interpreter. */
 
-import type { Handler, Interpreter } from "../../core/free.ts";
-import { emptyQueryState, sqlHandlers } from "../../dsl/sql/interpreter.ts";
-import type { QueryState, Sql } from "../../dsl/sql/mod.ts";
-import { renderSql } from "../../dsl/sql/render.ts";
+import type { Handler, Interpreter } from "@/core/free.ts";
+import { emptyQueryState, sqlHandlers } from "@/dsl/sql/interpreter.ts";
+import type { QueryState, Sql } from "@/dsl/sql/mod.ts";
+import { renderSql } from "@/dsl/sql/render.ts";
 import type { InvestigationDecision } from "./language.ts";
 import {
   type CompiledReferencePattern,

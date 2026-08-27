@@ -6,9 +6,9 @@ import {
   cartQueryPlanInterpreter,
   cartQuerySqlInterpreter,
   contentsOfCart,
-} from "../src/domain/cart-query/mod.ts";
-import { run } from "../src/core/free.ts";
-import { sql, sqlInterpreter } from "../src/dsl/sql/mod.ts";
+} from "@/domain/cart-query/mod.ts";
+import { run } from "@/core/free.ts";
+import { sql, sqlInterpreter } from "@/dsl/sql/mod.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
 
 Deno.test("one use-case interpretation returns parameterized SQL", () => {

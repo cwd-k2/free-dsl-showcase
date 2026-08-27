@@ -52,6 +52,10 @@ dsl/{effects,events,vdom} ──────────────────
                                            core/free
 ```
 
+`deno.json` の import map で `@/` を `src/` に割り当てています。層や DSL をまたぐ依存は
+`@/core/free.ts`、`@/dsl/sql/mod.ts` のようにルートから記述し、同じモジュール内の参照には
+`./language.ts` のような相対パスを使います。
+
 - `examples/cart/`: カート検索usecaseと、低レベル SQL primitive による比較例
 - `examples/email/`: 型付きメール Parser と、低レベル Regex primitive による比較例
 - `examples/`: その他の DSL サンプルプログラム兼 CLI エントリポイント

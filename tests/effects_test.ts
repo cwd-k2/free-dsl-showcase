@@ -1,8 +1,8 @@
 /** Tests that one effect program has equivalent pure-State and console interpretations. */
 
 import { greet } from "../examples/effects.ts";
-import { run } from "../src/core/free.ts";
-import { consoleInterpreter, stateInterpreter } from "../src/dsl/effects/mod.ts";
+import { run } from "@/core/free.ts";
+import { consoleInterpreter, stateInterpreter } from "@/dsl/effects/mod.ts";
 import { assertEquals, assertThrows } from "./assert.ts";
 
 Deno.test("ordinary effects can be interpreted as pure State", () => {

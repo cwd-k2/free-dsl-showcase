@@ -1,6 +1,6 @@
 /** Domain operations for a procedural cart-query use case, independent of SQL and schema. */
 
-import { perform, type Program } from "../../core/free.ts";
+import { perform, type Program } from "@/core/free.ts";
 
 export type CartVisibility = Readonly<{
   kind: "owner";

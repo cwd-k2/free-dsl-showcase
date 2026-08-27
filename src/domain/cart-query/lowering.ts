@@ -1,7 +1,7 @@
 /** Lower the cart-query domain AST into operations from the existing SQL DSL. */
 
-import type { Program } from "../../core/free.ts";
-import { sql, type SqlExpr } from "../../dsl/sql/mod.ts";
+import type { Program } from "@/core/free.ts";
+import { sql, type SqlExpr } from "@/dsl/sql/mod.ts";
 import type { CartContentsPlan } from "./language.ts";
 
 /** The only layer that knows how cart concepts map to the physical relational schema. */

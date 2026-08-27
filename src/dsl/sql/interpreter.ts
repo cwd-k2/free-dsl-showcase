@@ -5,7 +5,7 @@
  * @module
  */
 
-import type { Handler, Interpreter } from "../../core/free.ts";
+import type { Handler, Interpreter } from "@/core/free.ts";
 import type { QueryState, Selectable, SelectItem, Sql, SqlExpr, TableRef } from "./language.ts";
 import { assertIdent, renderSql } from "./render.ts";
 
