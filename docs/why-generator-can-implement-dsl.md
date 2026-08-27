@@ -26,8 +26,8 @@ export function* greet(): Program<string> {
               （以下、完了まで反復）
 ```
 
-Generator の `yield` / `next` は、まさにこの中断と再開を提供する。本章では、この答えを
-代数的エフェクト、自由代数、限定継続の順に少しずつ組み立て、最後に `src/core/free.ts` の短い実装へ
+Generator の `yield` / `next` は、まさにこの中断と再開を提供する。本章では、命令をデータにする
+ところから自由代数、代数的エフェクト、限定継続へ進み、最後に `src/core/free.ts` の短い実装へ
 戻ってくる。
 
 ## まず「命令を値にする」
@@ -56,13 +56,14 @@ data Talk a where
 これは DSL の**シグネチャ**、つまり使える操作と各操作の引数・結果型の一覧である。まだ
 コンソールから読むとも、テストデータから読むとも決めていない。
 
-操作を要求する関数を、代数的エフェクトの用語に合わせて `perform` と書こう。
+操作を要求する関数を、代数的エフェクトの用語に合わせて `perform` と書こう。以下の `Eff`、 `Member`
+は、特定の Haskell ライブラリではなく、エフェクト集合を型で表す説明用の表記である。
 
 ```haskell
-ask :: String -> Eff Talk String
+ask :: Member Talk effects => String -> Eff effects String
 ask question = perform (Ask question)
 
-tell :: String -> Eff Talk ()
+tell :: Member Talk effects => String -> Eff effects ()
 tell message = perform (Tell message)
 ```
 
@@ -71,18 +72,27 @@ tell message = perform (Tell message)
 
 ## 命令のリストだけでは足りない
 
-操作をデータにできたなら、単なるリストに並べればよさそうに見える。
+操作をデータにできたなら、単なるリストに並べればよさそうに見える。戻り値の型を消去した単純な
+命令型を用意すると、次のようには書ける。
 
 ```haskell
-[ Ask "Your name?"
-, Tell "Hello!"
+data TalkInstruction
+  = AskInstruction String
+  | TellInstruction String
+
+program :: [TalkInstruction]
+program =
+  [ AskInstruction "Your name?"
+  , TellInstruction "Hello!"
 ]
 ```
 
-しかし、これでは `Ask` の答えを次の `Tell` で使えない。実際に欲しいプログラムは次である。
+元の `Talk String` と `Talk ()` は要素型が違うため、そのまま同じ Haskell のリストには入らない。
+上のように結果型を消去しても、`AskInstruction` の答えを次の `TellInstruction` で使えない。実際に
+欲しいプログラムは次である。
 
 ```haskell
-greet :: Eff Talk String
+greet :: Member Talk effects => Eff effects String
 greet = do
   name <- ask "Your name?"
   tell ("Hello, " <> name <> "!")
@@ -132,6 +142,11 @@ data Term
 できるという意味ではなく、**シグネチャと合成の規則以外の等式や意味を、まだ課していない**という
 意味である。
 
+ここでは、操作について等式を一つも指定しない最も単純な場合を考えている。たとえば非決定性の `choose`
+に交換則や冪等則を指定するようなエフェクト理論では、その公理で同一視した項から自由モデルを
+作る。この場合の「自由」は、公理がないという意味ではなく、**指定した公理以外の余分な関係を課さない**
+という意味になる。
+
 インタプリタは、各生成元（各操作）に具体的な意味を与える。すると、その対応は複合したプログラム
 全体へ広がる。
 
@@ -151,7 +166,8 @@ RingBell           ──────────>  [Bell] を追加
 ```
 
 この「生成元の意味を選ぶと、複合項全体の意味が定まる」という性質が、DSL とインタプリタを分離
-できる理由である。
+できる理由である。エフェクト理論に等式がある場合、理論上のモデルとして解釈するには、選んだ意味も
+その等式を満たす必要がある。
 
 ### 戻り値を持つ操作では継続も構文になる
 
@@ -236,8 +252,10 @@ runTalk program state =
 3. 結果を継続へ渡す
 4. 得られた残りのプログラムについて繰り返す
 
-自由代数の観点では、これは自由な項を別の代数へ写す fold である。制御フローの観点では、これは
-中断された計算へ値を返して再開するステップ実行である。同じ構造を二つの方向から見ている。
+自由代数の観点では、これは自由な項を別の代数へ写す fold として読める。操作に等式を課した
+エフェクト理論まで考える場合、理論上のハンドラが準同型になるには、その解釈が等式を保つ必要がある。
+制御フローの観点では、これは中断された計算へ値を返して再開するステップ実行である。同じ構造を
+二つの方向から見ている。
 
 ## 代数的エフェクトでは継続を誰が作るのか
 
@@ -275,8 +293,10 @@ handleTalk program = handle program with
 `perform (Ask ...)` の式自体は `String` を返すように見える。しかし実際にはそこで一旦外側へ制御を
 渡し、ハンドラが `resume k answer` したときに初めて、`perform` 式の値が `answer` になる。
 
-この仕組みが**限定継続**である。「限定」と付くのは、捕捉する残りがプロセス全体の終了までではなく、
-最も近いハンドラという境界までだからである。
+この操作節へ渡される `k` は、ハンドラ境界で区切られた**限定継続**として読める。「限定」と付くのは、
+捕捉する残りがプロセス全体の終了までではなく、最も近いハンドラという境界までだからである。
+ただし、代数的エフェクトハンドラと汎用的な限定継続演算子の表現力や型付けが常に同一、という意味では
+ない。
 
 ### shift/reset との対応
 
@@ -298,7 +318,7 @@ handleTalk program = handle program with
 TypeScript の Generator に戻ろう。
 
 ```ts
-function* perform<A>(kind: string, payload: unknown): Program<A> {
+function* perform<A>(kind: string, payload: unknown = undefined): Program<A> {
   return (yield { kind, payload }) as A;
 }
 ```
@@ -344,8 +364,8 @@ k result                          generator.next(result)
 Pure result                       { done: true, value: result }
 ```
 
-これが Generator を限定継続そのものではなく、**限定継続と同じ中断・再開プロトコルを提供する one-shot
-coroutine** と呼ぶ理由である。
+これが Generator を限定継続そのものではなく、**この DSL に必要な限定継続風の中断・再開プロトコルを
+提供する one-shot coroutine** と呼ぶ理由である。
 
 ## `run` を1行ずつ対応づける
 
@@ -426,12 +446,10 @@ checkout :: Members '[Inventory, Payment, Audit] effects
 ```
 
 ハンドラは、型に残っているエフェクトを一つ解釈し、より少ないエフェクトを持つ計算や最終値へ変換する。
+説明用の effect-row 風表記なら、型は次のようになる。
 
-```text
-Eff (Talk : effects) a
-        │ handleTalk
-        ▼
-Eff effects a
+```haskell
+runTalk :: Eff (Talk ': effects) a -> Eff effects a
 ```
 
 この見方には二つの利点がある。
@@ -544,10 +562,10 @@ Generator      その中断・再開を yield / next で one-shot に実現す�
 Interpreter    操作に意味を与え、結果を返して Generator を進める
 ```
 
-この視点で `src/core/free.ts` を読むと、そこに大きな魔法はない。`perform` が要求を1個外へ出し、`run`
-が 要求を解釈して値を返す。その間の「残りの計算」を JavaScript ランタイムが Generator の状態として
-保持してくれるため、Free/Freer
-の木や継続スタックをアプリケーション側で実装せずに済んでいるのである。
+この視点で `src/core/free.ts` を読むと、そこに大きな魔法はない。`perform` が要求を1個外へ出し、
+`run` が要求を解釈して値を返す。その間の「残りの計算」を JavaScript ランタイムが Generator の
+状態として保持してくれるため、Free/Freer の木や継続スタックをアプリケーション側で実装せずに
+済んでいるのである。
 
 ## 次に読むコード
 
@@ -557,6 +575,26 @@ Interpreter    操作に意味を与え、結果を返して Generator を進め
 4. `src/dsl/regex/language.ts` と `interpreter.ts` — 構築系 DSL の戻り値がどう合成されるかを見る
 5. `examples/shipment-investigation.ts` — 分岐、反復、早期終了を含む業務手続きを見る
 
-より形式的な CPS、Defunctionalization、Free Monad、Coyoneda、Freer Monad からの導出は、隣接する
-`freely-created-monad` リポジトリの各章で扱っている。本章は、その導出を置き換えるものではなく、
-この実装で必要になる「操作要求と1ステップの中断・再開」を先に掴むための入口である。
+本章は、このリポジトリだけで「操作要求と1ステップの中断・再開」から Generator 実装までを
+追えることを目標にしている。CPS、Defunctionalization、Free Monad、Coyoneda、Freer Monad を順に
+実装して比較する Haskell コードも、別リポジトリを前提にせず、このリポジトリへ追加する。
+
+## 参考文献
+
+- Gordon D. Plotkin, Matija Pretnar,
+  [_Handling Algebraic Effects_](https://homepages.inf.ed.ac.uk/gdp/publications/handling-algebraic-effects.pdf)
+  — 自由モデル、操作の結果で継続が決まるという計算の見方、ハンドラと準同型
+- Andrej Bauer, Matija Pretnar,
+  [_Programming with Algebraic Effects and Handlers_](https://arxiv.org/abs/1203.1539) — Eff
+  における操作、ハンドラ、自由代数と限定継続的なプログラミング
+- Oleg Kiselyov, Hiromi Ishii,
+  [_Freer Monads, More Extensible Effects_](https://okmij.org/ftp/Haskell/extensible/more.pdf) —
+  `Functor` 制約を外した Freer と、露出した継続による extensible effects
+- Yannick Forster, Ohad Kammar, Sam Lindley, Matija Pretnar,
+  [_On the Expressive Power of User-Defined Effects_](https://arxiv.org/abs/1610.09161) — effect
+  handlers と delimited control の対応、および型付けを含めると単純な同一視ができないこと
+- Ecma International,
+  [_ECMAScript Language Specification: Generator Abstract Operations_](https://tc39.es/ecma262/2025/multipage/control-abstraction-objects.html#sec-generator-abstract-operations)
+  と
+  [_Yield Expression_](https://tc39.es/ecma262/2025/multipage/ecmascript-language-functions-and-classes.html#sec-generator-function-definitions-runtime-semantics-evaluation)
+  — Generator の中断状態、`next(value)` による再開、`yield` / `yield*` の規定
